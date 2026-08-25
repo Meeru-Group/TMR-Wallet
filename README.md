@@ -2,9 +2,9 @@
 
 This package contains the **Thanvi Testnet** Explorer and a browser-based, non-custodial TMR wallet.
 
-## Important: no fake chain data
+## Real-only testnet build
 
-The Explorer does **not** generate demo blocks, sample transactions, mock balances, or fake validator counts.
+This build deliberately contains **no demo blocks, sample transactions, mock balances, or hard-coded validators**. The only initial chain record is the real genesis block `#0`.
 
 - PostgreSQL is the persistent testnet state layer.
 - Genesis is block `#0`.
@@ -13,6 +13,7 @@ The Explorer does **not** generate demo blocks, sample transactions, mock balanc
 - The Explorer page itself does not manufacture blocks when refreshed.
 - Transaction sending uses Ed25519 signatures generated locally in the wallet.
 - The 10,000,000,000 TMR testnet supply is recorded in the genesis allocation state.
+- Validator identities are loaded only from `TMR_VALIDATORS_JSON`; if it is absent, the Explorer reports zero validators and cannot finalize blocks.
 
 If an old database already contains demo blocks, use the one-time reset described below.
 
@@ -64,21 +65,43 @@ Private keys are not sent to the API.
 
 ## Block production
 
-The Explorer no longer calls the block producer on every page/API refresh by default.
+The Explorer never creates blocks just because a page is opened or refreshed. A block is finalized only when real pending transactions exist and an active validator is configured.
 
 Set:
 
 ```env
 TMR_REQUEST_BLOCK_PRODUCTION=false
+TMR_BLOCK_PRODUCER_KEY=change-this-to-a-long-random-secret
+TMR_VALIDATORS_JSON=[{"id":"validator-01","publicKey":"BASE64_RAW_ED25519_PUBLIC_KEY","reputation":500}]
 ```
 
 for a read-only Explorer deployment.
 
 For a private testnet where request-driven finalization is acceptable, set it to `true`.
 
-For a more correct deployment, run `POST /api/blocks/produce` from a persistent validator/worker. If `TMR_BLOCK_PRODUCER_KEY` is configured, send it as the `x-tmr-producer-key` header.
+For production-style testnet operation, run `POST /api/blocks/produce` from a persistent validator/worker. If `TMR_BLOCK_PRODUCER_KEY` is configured, send it as the `x-tmr-producer-key` header. The worker must be paired with a real validator identity in `TMR_VALIDATORS_JSON`.
 
-**This package is a PostgreSQL-backed testnet implementation. It is not a decentralized mainnet validator network by itself.** A real multi-node PoR network requires independent validator processes, peer networking, vote aggregation, and durable consensus state.
+**This package is a real, persistent testnet implementation, but it is not a decentralized multi-node mainnet protocol.** A multi-node PoR network still requires independent validator processes, peer networking, block/vote signatures, and durable consensus state. This build intentionally does not pretend those components exist.
+
+
+## Real validator configuration
+
+Do not use placeholder validator IDs or public keys. Generate a real Ed25519 key pair for each validator and register only the public key here.
+
+```env
+TMR_VALIDATORS_JSON=[{"id":"validator-01","publicKey":"BASE64_RAW_ED25519_PUBLIC_KEY","reputation":500}]
+```
+
+If `TMR_VALIDATORS_JSON` is missing, a clean deployment is expected to show:
+
+```text
+Latest Block: 0
+Blocks (including genesis): 1
+Transactions: 0
+Validators: 0
+```
+
+That is intentional: the application will not invent validators or blocks.
 
 ## PostgreSQL
 
@@ -93,6 +116,8 @@ TMR_NETWORK=testnet
 TMR_BLOCK_TIME_MS=12000
 TMR_FAUCET_AMOUNT=1000
 TMR_REQUEST_BLOCK_PRODUCTION=false
+TMR_BLOCK_PRODUCER_KEY=change-this-to-a-long-random-secret
+TMR_VALIDATORS_JSON=[{"id":"validator-01","publicKey":"BASE64_RAW_ED25519_PUBLIC_KEY","reputation":500}]
 ```
 
 Do not commit `.env` or a real database URL.
@@ -110,12 +135,11 @@ Deploy/start the application once, wait for `/api/health` to return successfully
 The migration:
 
 1. Deletes transactions.
-2. Deletes non-genesis blocks.
+2. Deletes all old blocks and recreates the cryptographic genesis block `#0`.
 3. Deletes faucet claims.
 4. Deletes reputation events.
-5. Resets validator counters.
-6. Keeps only genesis block `#0`.
-7. Restores the 10B TMR genesis allocation.
+5. Deletes old validator rows, then loads only validators from `TMR_VALIDATORS_JSON`.
+6. Restores the 10B TMR genesis allocation.
 
 The migration marker prevents it from running on every request.
 

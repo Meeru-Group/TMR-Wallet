@@ -4,6 +4,7 @@
 // ============================================================
 
 const { Pool } = require("pg");
+const crypto = require("node:crypto");
 
 let pool;
 
@@ -185,29 +186,8 @@ async function resetTestnetChainOnce() {
     await client.query("DELETE FROM transactions");
     await client.query("DELETE FROM faucet_claims");
     await client.query("DELETE FROM reputation_events");
-    await client.query("DELETE FROM blocks WHERE height > 0");
-
-    // Restore the initial validator state.
-    await client.query(`
-      UPDATE validators
-      SET blocks_proposed = 0,
-          blocks_validated = 0,
-          missed_rounds = 0,
-          invalid_blocks = 0,
-          last_active = NOW(),
-          reputation = CASE validator_id
-            WHEN 'por-validator-001' THEN 850
-            WHEN 'por-validator-002' THEN 900
-            WHEN 'por-validator-003' THEN 750
-            ELSE reputation
-          END,
-          reputation_score = CASE validator_id
-            WHEN 'por-validator-001' THEN 850
-            WHEN 'por-validator-002' THEN 900
-            WHEN 'por-validator-003' THEN 750
-            ELSE reputation_score
-          END
-    `);
+    await client.query("DELETE FROM validators");
+    await client.query("DELETE FROM blocks");
 
     await client.query(`
       INSERT INTO chain_meta (key, value)
@@ -223,6 +203,18 @@ async function seedGenesis() {
   );
   if (result.rowCount > 0) return;
 
+  const genesis = {
+    height: 0,
+    previousHash: null,
+    timestamp: "2026-08-13T00:00:00.000Z",
+    proposer: "genesis",
+    transactions: []
+  };
+  const hash = crypto
+    .createHash("sha256")
+    .update(JSON.stringify(genesis))
+    .digest("hex");
+
   await query(
     `INSERT INTO blocks
       (height, hash, previous_hash, timestamp, proposer, validator,
@@ -231,16 +223,17 @@ async function seedGenesis() {
       ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,$10)`,
     [
       0,
-      "0".repeat(64),
+      hash,
       null,
-      "2026-08-13T00:00:00.000Z",
+      genesis.timestamp,
       "genesis",
       "genesis",
       JSON.stringify([]),
       0,
       JSON.stringify({
         algorithm: "proof-of-reputation",
-        status: "finalized"
+        status: "finalized",
+        type: "genesis"
       }),
       "finalized"
     ]
@@ -274,18 +267,43 @@ async function seedTestnetMetadata() {
 }
 
 async function seedInitialValidators() {
-  const validators = [
-    ["por-validator-001", "tmr-public-key-001", 850],
-    ["por-validator-002", "tmr-public-key-002", 900],
-    ["por-validator-003", "tmr-public-key-003", 750]
-  ];
+  // Real validators are supplied by deployment configuration, never by
+  // hard-coded/demo identities. Example JSON:
+  // [{"id":"validator-01","publicKey":"<base64-raw-ed25519-public-key>","reputation":500}]
+  const raw = process.env.TMR_VALIDATORS_JSON;
+  if (!raw) return;
 
-  for (const [id, publicKey, reputation] of validators) {
+  let validators;
+  try {
+    validators = JSON.parse(raw);
+  } catch {
+    throw new Error("TMR_VALIDATORS_JSON must be valid JSON");
+  }
+
+  if (!Array.isArray(validators)) {
+    throw new Error("TMR_VALIDATORS_JSON must be an array");
+  }
+
+  for (const validator of validators) {
+    const id = String(validator.id || "").trim();
+    const publicKey = String(validator.publicKey || "").trim();
+    const reputation = Number(validator.reputation ?? 500);
+    if (!id || !publicKey) {
+      throw new Error("Each configured validator requires id and publicKey");
+    }
+    if (!Number.isInteger(reputation) || reputation < 0 || reputation > 1000) {
+      throw new Error(`Invalid reputation for validator ${id}`);
+    }
+
     await query(
       `INSERT INTO validators
         (validator_id, public_key, reputation, reputation_score)
        VALUES ($1,$2,$3,$3)
-       ON CONFLICT (validator_id) DO NOTHING`,
+       ON CONFLICT (validator_id) DO UPDATE SET
+         public_key = EXCLUDED.public_key,
+         reputation = EXCLUDED.reputation,
+         reputation_score = EXCLUDED.reputation_score,
+         status = 'active'`,
       [id, publicKey, reputation]
     );
   }

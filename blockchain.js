@@ -496,7 +496,7 @@ class TMRBlockchain {
 
   async createBlock(
     transactionHashes = [],
-    proposer = "por-validator-001"
+    proposer = null
   ) {
 
     return db.withTransaction(
@@ -507,6 +507,21 @@ class TMRBlockchain {
           "SELECT pg_advisory_xact_lock($1)",
           [872341]
         );
+
+        if (!proposer) {
+          const validatorResult = await client.query(`
+            SELECT validator_id
+            FROM validators
+            WHERE status = 'active'
+            ORDER BY reputation DESC, validator_id ASC
+            LIMIT 1
+          `);
+          proposer = validatorResult.rows[0]?.validator_id || null;
+        }
+
+        if (!proposer) {
+          throw new Error("No active real validator is configured");
+        }
 
         const latestResult =
           await client.query(`

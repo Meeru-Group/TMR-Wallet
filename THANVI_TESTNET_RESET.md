@@ -11,10 +11,10 @@ TMR_RESET_TESTNET_CHAIN=true
 Deploy/start once. The application will:
 
 - delete all transactions;
-- delete all blocks above genesis `#0`;
+- delete all blocks and recreate the cryptographic genesis block `#0`;
 - delete faucet claims;
 - delete reputation events;
-- reset validator block/reputation counters;
+- remove all old validator rows and reload only real configured validators;
 - restore the genesis TMR allocation.
 
 The migration uses the marker `testnet_chain_reset_v2`, so it does not repeat on every request.

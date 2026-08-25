@@ -138,6 +138,10 @@ function base32Encode(buffer) {
   return output;
 }
 
+function isValidAddress(address) {
+  return /^TMR1[a-z2-7]{32}$/.test(String(address || ""));
+}
+
 function addressFromPublicKey(rawPublicKey) {
   const digest = crypto.createHash("sha256").update(rawPublicKey).digest();
   return "TMR1" + base32Encode(digest.subarray(0, 20));
@@ -440,8 +444,20 @@ async function handler(req, res) {
     if (pathname === "/api/blocks/produce" && req.method === "POST") {
       const configuredKey = process.env.TMR_BLOCK_PRODUCER_KEY;
       const suppliedKey = req.headers["x-tmr-producer-key"];
-      if (configuredKey && suppliedKey !== configuredKey) {
+      if (!configuredKey) {
+        return sendJSON(res, 503, { success: false, error: "TMR_BLOCK_PRODUCER_KEY is not configured" });
+      }
+      if (suppliedKey !== configuredKey) {
         return sendJSON(res, 401, { success: false, error: "Invalid block producer key" });
+      }
+
+      const activeValidators = await getValidators();
+      if (!activeValidators.some(v => v.status === "active")) {
+        return sendJSON(res, 503, {
+          success: false,
+          produced: false,
+          error: "No active real validator is configured. Set TMR_VALIDATORS_JSON before producing blocks."
+        });
       }
 
       const block = await chain.produceNextBlockIfDue();
@@ -485,8 +501,10 @@ async function handler(req, res) {
 
     // ---------------- COIN / TESTNET ----------------
     if (pathname === "/api/coin" && req.method === "GET") {
-      return sendJSON(res, 200, {
-        success: true,
+      const meta = await db.query(
+        "SELECT value FROM chain_meta WHERE key = 'coin' LIMIT 1"
+      );
+      const coin = meta.rows[0]?.value || {
         network: TESTNET ? "testnet" : "mainnet",
         name: "TMR",
         symbol: "TMR",
@@ -496,15 +514,16 @@ async function handler(req, res) {
         native: true,
         consensus: NETWORK.consensus,
         faucetAddress: TESTNET_FAUCET_ADDRESS,
-        faucetAmount: TESTNET_FAUCET_AMOUNT
-      });
+        faucetAmount: String(TESTNET_FAUCET_AMOUNT)
+      };
+      return sendJSON(res, 200, { success: true, ...coin });
     }
 
     if (pathname === "/api/faucet" && req.method === "POST") {
       if (!TESTNET) return sendJSON(res, 403, { success:false, error:"Faucet is testnet-only" });
       const body = await parseJSONBody(req);
       const address = String(body.address || "").trim();
-      if (!/^TMR1[a-z2-7]+$/.test(address)) {
+      if (!isValidAddress(address)) {
         return sendJSON(res, 400, { success:false, error:"Invalid TMR1 testnet address" });
       }
       const existing = await db.query(`SELECT last_claim_at FROM faucet_claims WHERE address = $1`, [address]);
@@ -564,12 +583,12 @@ async function handler(req, res) {
       const numericAmount = Number(amount);
 
       if (
-        !Number.isFinite(numericAmount) ||
-        numericAmount < 0
+        !Number.isSafeInteger(numericAmount) ||
+        numericAmount <= 0
       ) {
         return sendJSON(res, 400, {
           success: false,
-          error: "amount must be a non-negative number"
+          error: "amount must be a positive whole TMR amount"
         });
       }
 
