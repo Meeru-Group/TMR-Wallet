@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070a12">
+<title>TMR Wallet • Testnet</title>
+<link rel="stylesheet" href="/wallet.css">
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <div class="brand"><div class="logo">T</div><div><strong>TMR Wallet</strong><span>Secure • Non-custodial</span></div></div>
+  <button id="refreshTop" class="iconBtn" aria-label="Refresh">↻</button>
+</header>
+<div class="network"><span id="dot">●</span><b id="networkText">Connecting…</b><span id="chainText">TMR-CHAIN-1</span></div>
+
+<main>
+<section id="welcome" class="welcome card">
+  <div class="heroIcon">T</div><div class="eyebrow">NATIVE TMR WALLET</div>
+  <h1>Own your TMR.</h1><p>Create a wallet on this testnet. Your private key stays on this device.</p>
+  <button id="createWallet" class="primary full">Create New Wallet</button>
+  <button id="restoreWallet" class="ghost full">Restore Encrypted Backup</button>
+  <input id="backupFile" type="file" accept="application/json,.json" hidden>
+  <div id="welcomeMsg" class="msg"></div>
+</section>
+
+<section id="dashboard" class="hidden">
+  <div class="balanceCard">
+    <div class="balanceTop"><span>Total TMR Balance</span><span class="testnet">TESTNET</span></div>
+    <div class="balance"><span id="balance">0</span> <small>TMR</small></div>
+    <button id="address" class="addressBtn">TMR1…</button>
+    <div class="balanceMeta"><span id="balanceStatus">Not connected</span><span id="nonce">Nonce 0</span></div>
+  </div>
+
+  <div class="quickActions">
+    <button id="sendBtn"><i>↑</i><b>Send</b><small>TMR</small></button>
+    <button id="receiveBtn"><i>↓</i><b>Receive</b><small>TMR</small></button>
+    <button id="faucetBtn"><i>💧</i><b>Faucet</b><small>1000 TMR</small></button>
+  </div>
+
+  <section class="card section"><div class="sectionHead"><h2>Activity</h2><button id="refresh" class="mini">Refresh</button></div><div id="activity" class="empty">No transactions yet.</div></section>
+  <section class="card section"><div class="sectionHead"><h2>Network</h2><span class="live">● LIVE</span></div><div class="grid"><div><small>Block height</small><b id="height">—</b></div><div><small>Transactions</small><b id="txCount">—</b></div><div><small>Validators</small><b id="validators">—</b></div><div><small>Consensus</small><b id="consensus">Proof-of-Reputation</b></div></div></section>
+  <section class="card section"><div class="sectionHead"><h2>Wallet</h2><button id="copyAddress" class="mini">Copy</button></div><div class="addressBox" id="fullAddress">—</div><div class="keyLabel">Public key</div><div class="addressBox" id="publicKey">—</div><div class="warning">Never share your private key or backup password. This wallet signs transactions locally.</div><div class="two"><button id="exportBackup" class="ghost">Encrypted Backup</button><button id="forgetWallet" class="danger">Delete Wallet</button></div></section>
+</section>
+
+<section id="sendPanel" class="modal hidden"><div class="modalBox"><div class="modalHead"><h2>Send TMR</h2><button data-close="sendPanel">×</button></div><label>Recipient address</label><input id="recipient" placeholder="TMR1…" autocomplete="off"><label>Amount</label><input id="amount" inputmode="numeric" placeholder="0"><div class="fee">Network: TMR-CHAIN-1 • Ed25519 signed</div><button id="sendButton" class="primary full">Sign & Broadcast</button><div id="sendMsg" class="msg"></div></div></section>
+<section id="receivePanel" class="modal hidden"><div class="modalBox"><div class="modalHead"><h2>Receive TMR</h2><button data-close="receivePanel">×</button></div><p class="muted">Use this address to receive real testnet TMR on TMR-CHAIN-1.</p><div id="receiveAddress" class="receiveAddress">—</div><button id="copyReceive" class="primary full">Copy Address</button></div></section>
+<section id="faucetPanel" class="modal hidden"><div class="modalBox"><div class="modalHead"><h2>Testnet Faucet</h2><button data-close="faucetPanel">×</button></div><p class="muted">Request 1,000 TMR from the testnet genesis faucet. The request creates a real on-chain pending transaction.</p><div class="faucetAmount">+1,000 TMR</div><button id="claimFaucet" class="primary full">Claim Testnet TMR</button><div id="faucetMsg" class="msg"></div></div></section>
+</main>
+<footer>TMR Blockchain • Testnet • Proof-of-Reputation • Native TMR</footer>
+</div>
+<script src="/wallet.js" defer></script>
+</body></html>
