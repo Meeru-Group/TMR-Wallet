@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TMR Wallet</title>
+  <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>🔐 TMR Wallet</h1>
+      <p>Native wallet • TMR1 address format</p>
+    </header>
+
+    <section class="card">
+      <h2>Create Wallet</h2>
+      <p class="muted">Your private key is generated locally in this browser.</p>
+      <button id="create">Create New Wallet</button>
+    </section>
+
+    <section id="wallet" class="card hidden">
+      <h2>Your Wallet</h2>
+      <label>Address</label>
+      <div class="value mono" id="address">—</div>
+
+      <label>Public Key</label>
+      <div class="value mono" id="publicKey">—</div>
+
+      <label>Private Key</label>
+      <div class="value mono secret" id="privateKey">—</div>
+
+      <div class="warning">
+        ⚠️ Never share your private key. Anyone with it can control the wallet.
+      </div>
+
+      <div class="grid">
+        <button id="download">Download Backup</button>
+        <button id="clear" class="danger">Delete Local Wallet</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Restore Wallet</h2>
+      <textarea id="backup" placeholder="Paste your wallet backup JSON here"></textarea>
+      <button id="restore">Restore</button>
+      <p id="message" class="muted"></p>
+    </section>
+  </main>
+
+  <script type="module" src="src/wallet.js"></script>
+</body>
+</html>
