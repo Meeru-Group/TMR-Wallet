@@ -143,9 +143,55 @@ async function initializeDatabase() {
       ON reputation_events(validator_id, created_at DESC);
   `);
 
+  await resetTestnetChainOnce();
   await seedGenesis();
   await seedTestnetMetadata();
   await seedInitialValidators();
+}
+
+async function resetTestnetChainOnce() {
+  if (process.env.TMR_RESET_TESTNET_CHAIN !== "true") return;
+
+  const marker = await query(
+    "SELECT value FROM chain_meta WHERE key = 'testnet_chain_reset_v1_5' LIMIT 1"
+  );
+  if (marker.rowCount > 0) return;
+
+  await withTransaction(async client => {
+    // Remove all old/demo transactions and non-genesis blocks.
+    await client.query("DELETE FROM transactions");
+    await client.query("DELETE FROM faucet_claims");
+    await client.query("DELETE FROM reputation_events");
+    await client.query("DELETE FROM blocks WHERE height > 0");
+
+    // Restore the initial validator state.
+    await client.query(`
+      UPDATE validators
+      SET blocks_proposed = 0,
+          blocks_validated = 0,
+          missed_rounds = 0,
+          invalid_blocks = 0,
+          last_active = NOW(),
+          reputation = CASE validator_id
+            WHEN 'por-validator-001' THEN 850
+            WHEN 'por-validator-002' THEN 900
+            WHEN 'por-validator-003' THEN 750
+            ELSE reputation
+          END,
+          reputation_score = CASE validator_id
+            WHEN 'por-validator-001' THEN 850
+            WHEN 'por-validator-002' THEN 900
+            WHEN 'por-validator-003' THEN 750
+            ELSE reputation_score
+          END
+    `);
+
+    await client.query(`
+      INSERT INTO chain_meta (key, value)
+      VALUES ('testnet_chain_reset_v1_5', '{"completed":true}'::jsonb)
+      ON CONFLICT (key) DO NOTHING
+    `);
+  });
 }
 
 async function seedGenesis() {
@@ -183,7 +229,7 @@ async function seedTestnetMetadata() {
   await query(`
     INSERT INTO chain_meta (key, value)
     VALUES ($1, $2::jsonb)
-    ON CONFLICT (key) DO NOTHING
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
   `, ["coin", JSON.stringify({
     network: "testnet",
     name: "TMR",

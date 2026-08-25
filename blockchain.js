@@ -803,6 +803,12 @@ class TMRBlockchain {
         const transactions =
           txResult.rows;
 
+        // Do not create empty/demo blocks. A block is finalized only
+        // when there is at least one real pending transaction.
+        if (!transactions.length) {
+          return null;
+        }
+
         const timestamp =
           new Date().toISOString();
 

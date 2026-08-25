@@ -1,4 +1,4 @@
-# TMR Blockchain Explorer
+# Thanvi Testnet — TMR Blockchain Explorer
 
 This folder contains a simple mobile-friendly explorer frontend.
 
@@ -100,7 +100,7 @@ Do not upload `.env` or a real `DATABASE_URL` to GitHub.
 
 ## Transaction submission
 
-The Explorer now exposes `POST /api/transactions` and a demo transaction form.
+The Explorer now exposes `POST /api/transactions` .
 
 Example request:
 
@@ -129,3 +129,14 @@ The current PostgreSQL transaction amount column is an integer base unit (`NUMER
 
 ## Testnet v1.4
 See `TESTNET_DEPLOYMENT.md` for the 10B TMR genesis supply, faucet and wallet integration.
+
+
+## Reset an existing testnet once
+
+If an existing PostgreSQL database already contains old/demo blocks or transactions, add this Vercel environment variable for the next deployment:
+
+```env
+TMR_RESET_TESTNET_CHAIN=true
+```
+
+The migration deletes old transactions, non-genesis blocks, faucet claims and reputation events, then restores the three initial validators. A database marker prevents the reset from running again on every request. Remove the environment variable after the reset deployment.

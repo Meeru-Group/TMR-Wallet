@@ -1,7 +1,7 @@
 {
   "name": "tmr-blockchain-por",
-  "version": "1.4.0",
-  "description": "TMR Blockchain Testnet with Proof-of-Reputation, persistent PostgreSQL storage, fixed 10B TMR supply, faucet and non-custodial wallet API",
+  "version": "1.5.0",
+  "description": "Thanvi Testnet TMR Blockchain with Proof-of-Reputation, persistent PostgreSQL storage, 10B TMR genesis supply, faucet and non-custodial wallet API",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {

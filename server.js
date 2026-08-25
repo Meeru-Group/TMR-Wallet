@@ -11,7 +11,7 @@ const TMRBlockchain = require("./blockchain");
 const db = require("./database");
 
 const NETWORK = {
-  name: "TMR Blockchain",
+  name: "Thanvi Testnet",
   symbol: "TMR",
   chainId: "TMR-CHAIN-1",
   consensus: "Proof-of-Reputation",

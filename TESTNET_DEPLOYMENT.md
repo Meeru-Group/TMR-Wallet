@@ -1,8 +1,8 @@
-# TMR Blockchain Testnet + Wallet v1.4
+# Thanvi Testnet + Wallet v1.4
 
 ## Network
 - Chain ID: `TMR-CHAIN-1`
-- Environment: testnet
+- Environment: Thanvi Testnet
 - Native coin: TMR
 - Total supply: **10,000,000,000 TMR**
 - Consensus: Proof-of-Reputation

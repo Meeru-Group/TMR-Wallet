@@ -1,4 +1,4 @@
-# TMR Blockchain Explorer API
+# Thanvi Testnet — TMR Blockchain Explorer API
 
 This update adds an explorer-shaped API layer to the existing TMR Proof-of-Reputation server.
 
@@ -9,8 +9,8 @@ This update adds an explorer-shaped API layer to the existing TMR Proof-of-Reput
 - `GET /api/blocks/:height` — one block by height
 - `GET /api/transactions/:hash` — one transaction by hash
 - `GET /api/address/:address` — address balance and recent transactions
-- `POST /api/transactions` — development/test transaction submission
-- `POST /api/blocks/mine` — development/test block finalization
+- `POST /api/transactions` — signed TMR transaction submission
+- `POST /api/blocks/mine` — block finalization
 
 ## Important
 
