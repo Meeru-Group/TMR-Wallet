@@ -246,7 +246,7 @@ class TMRBlockchain {
 
   async getAddress(address) {
 
-    const result = await db.query(
+    const txResult = await db.query(
       `
       SELECT
         hash,
@@ -263,25 +263,44 @@ class TMRBlockchain {
       WHERE from_address = $1
          OR to_address = $1
       ORDER BY timestamp DESC
-      LIMIT 50
+      LIMIT 100
       `,
       [address]
     );
 
-    let balance = 0;
-
-    const meta = await db.query(`SELECT value FROM chain_meta WHERE key = 'genesis_allocations' LIMIT 1`);
+    const meta = await db.query(
+      `SELECT value FROM chain_meta WHERE key = 'genesis_allocations' LIMIT 1`
+    );
     const allocations = meta.rows[0]?.value || {};
-    balance += Number(allocations[address] || 0);
+    const genesisBalance = Number(allocations[address] || 0);
 
-    for (const tx of result.rows) {
-      const amount = Number(tx.amount);
-      if (tx.to === address) balance += amount;
-      if (tx.from === address) balance -= amount;
-    }
+    // Spendable balance is based on confirmed state minus pending outgoing
+    // transfers. Pending incoming transfers are not spendable yet.
+    const confirmed = await db.query(
+      `
+      SELECT
+        COALESCE(SUM(CASE WHEN to_address = $1 AND status = 'confirmed' THEN amount ELSE 0 END), 0)::text AS incoming,
+        COALESCE(SUM(CASE WHEN from_address = $1 AND status = 'confirmed' THEN amount ELSE 0 END), 0)::text AS outgoing,
+        COALESCE(SUM(CASE WHEN from_address = $1 AND status = 'pending' THEN amount ELSE 0 END), 0)::text AS pending_outgoing
+      FROM transactions
+      WHERE from_address = $1 OR to_address = $1
+      `,
+      [address]
+    );
+
+    const state = confirmed.rows[0] || {};
+    const balance =
+      genesisBalance +
+      Number(state.incoming || 0) -
+      Number(state.outgoing || 0) -
+      Number(state.pending_outgoing || 0);
 
     const nonceResult = await db.query(
-      `SELECT COALESCE(MAX(nonce), -1) + 1 AS "nextNonce" FROM transactions WHERE from_address = $1`,
+      `
+      SELECT COALESCE(MAX(nonce), -1) + 1 AS "nextNonce"
+      FROM transactions
+      WHERE from_address = $1
+      `,
       [address]
     );
 
@@ -289,8 +308,8 @@ class TMRBlockchain {
       address,
       balance,
       nextNonce: Number(nonceResult.rows[0].nextNonce || 0),
-      transactionCount: result.rows.length,
-      transactions: result.rows
+      transactionCount: txResult.rows.length,
+      transactions: txResult.rows
     };
   }
 
@@ -803,7 +822,7 @@ class TMRBlockchain {
         const transactions =
           txResult.rows;
 
-        // Do not create empty/demo blocks. A block is finalized only
+        // Never manufacture empty/demo blocks. The chain advances only
         // when there is at least one real pending transaction.
         if (!transactions.length) {
           return null;

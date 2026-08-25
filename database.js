@@ -50,6 +50,29 @@ async function withTransaction(fn) {
   }
 }
 
+function base32Encode(buffer) {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz234567";
+  let bits = 0;
+  let value = 0;
+  let output = "";
+  for (const byte of buffer) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      output += alphabet[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) output += alphabet[(value << (5 - bits)) & 31];
+  return output;
+}
+
+function getGenesisFaucetAddress() {
+  if (process.env.TMR_FAUCET_ADDRESS) return process.env.TMR_FAUCET_ADDRESS;
+  const digest = crypto.createHash("sha256").update("thanvi-testnet-genesis-faucet-v2").digest();
+  return "TMR1" + base32Encode(digest.subarray(0, 20));
+}
+
 async function initializeDatabase() {
   await query(`
     CREATE TABLE IF NOT EXISTS chain_meta (
@@ -153,7 +176,7 @@ async function resetTestnetChainOnce() {
   if (process.env.TMR_RESET_TESTNET_CHAIN !== "true") return;
 
   const marker = await query(
-    "SELECT value FROM chain_meta WHERE key = 'testnet_chain_reset_v1_5' LIMIT 1"
+    "SELECT value FROM chain_meta WHERE key = 'testnet_chain_reset_v2' LIMIT 1"
   );
   if (marker.rowCount > 0) return;
 
@@ -188,7 +211,7 @@ async function resetTestnetChainOnce() {
 
     await client.query(`
       INSERT INTO chain_meta (key, value)
-      VALUES ('testnet_chain_reset_v1_5', '{"completed":true}'::jsonb)
+      VALUES ('testnet_chain_reset_v2', '{"completed":true}'::jsonb)
       ON CONFLICT (key) DO NOTHING
     `);
   });
@@ -225,7 +248,7 @@ async function seedGenesis() {
 }
 
 async function seedTestnetMetadata() {
-  const faucet = process.env.TMR_FAUCET_ADDRESS || "TMR1faucet000000000000000000000000";
+  const faucet = getGenesisFaucetAddress();
   await query(`
     INSERT INTO chain_meta (key, value)
     VALUES ($1, $2::jsonb)
@@ -246,7 +269,7 @@ async function seedTestnetMetadata() {
   await query(`
     INSERT INTO chain_meta (key, value)
     VALUES ($1, $2::jsonb)
-    ON CONFLICT (key) DO NOTHING
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
   `, ["genesis_allocations", JSON.stringify({ [faucet]: "10000000000" })]);
 }
 

@@ -1,13 +1,26 @@
-# TMR Blockchain - Automatic Block Production Update
+# Block Production Rules
 
-## What changed
+The Explorer must never manufacture blocks merely because someone opens or refreshes the website.
 
-- The existing `produceNextBlockIfDue()` routine is now invoked on API requests.
-- PostgreSQL advisory locking remains responsible for preventing duplicate concurrent block creation.
-- The Explorer auto-refresh interval was changed from 30 seconds to 12 seconds to match the configured block time.
+## Rule
 
-## Important
+A block is finalized only when the PostgreSQL transaction pool contains at least one real pending transaction.
 
-This is request-driven block production for Vercel/serverless deployment. It is not a continuously running validator daemon. A block is produced when an API request arrives after the configured block interval has elapsed.
+## Vercel
 
-For a true continuously producing mainnet, run the consensus/block producer on a persistent worker or VM and keep the Explorer/API on Vercel.
+Vercel functions are request-driven. For a private testnet, request-driven finalization can be enabled with:
+
+```env
+TMR_REQUEST_BLOCK_PRODUCTION=true
+```
+
+For a more reliable testnet, run the finalizer from a persistent validator/worker:
+
+```http
+POST /api/blocks/produce
+x-tmr-producer-key: <configured-key>
+```
+
+If there are no pending transactions, the endpoint returns `produced: false` and does not create a block.
+
+This implementation intentionally does not claim to be a decentralized multi-node PoR network. Independent validators and vote aggregation are required for that.

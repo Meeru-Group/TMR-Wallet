@@ -1,7 +1,32 @@
-# Thanvi Testnet reset
+# Thanvi Testnet Reset
 
-This release removes the explorer demo transaction UI and stops automatic empty blocks.
+Use this one-time migration when an existing PostgreSQL database contains old/demo blocks or transactions.
 
-For an existing database that contains old/demo blocks, set `TMR_RESET_TESTNET_CHAIN=true` in Vercel for one deployment. The migration keeps only genesis block #0, clears transactions/faucet claims/reputation events, and resets the three initial validators. Remove the variable after the migration.
+Set:
 
-The native asset remains **TMR** with total genesis supply **10,000,000,000 TMR**. The network display name is **Thanvi Testnet**.
+```env
+TMR_RESET_TESTNET_CHAIN=true
+```
+
+Deploy/start once. The application will:
+
+- delete all transactions;
+- delete all blocks above genesis `#0`;
+- delete faucet claims;
+- delete reputation events;
+- reset validator block/reputation counters;
+- restore the genesis TMR allocation.
+
+The migration uses the marker `testnet_chain_reset_v2`, so it does not repeat on every request.
+
+After the deployment succeeds, remove `TMR_RESET_TESTNET_CHAIN` and redeploy.
+
+A clean chain should show:
+
+```text
+Latest Block: 0
+Blocks (including genesis): 1
+Transactions: 0
+```
+
+No refresh should create a new block.

@@ -1,142 +1,134 @@
-# Thanvi Testnet — TMR Blockchain Explorer
+# Thanvi Testnet — TMR Blockchain Explorer + Wallet
 
-This folder contains a simple mobile-friendly explorer frontend.
+This package contains the **Thanvi Testnet** Explorer and a browser-based, non-custodial TMR wallet.
 
-## Run locally
-Open `index.html` with a static server.
+## Important: no fake chain data
+
+The Explorer does **not** generate demo blocks, sample transactions, mock balances, or fake validator counts.
+
+- PostgreSQL is the persistent testnet state layer.
+- Genesis is block `#0`.
+- Total block count includes the genesis block.
+- A new block is created only when there are real pending transactions.
+- The Explorer page itself does not manufacture blocks when refreshed.
+- Transaction sending uses Ed25519 signatures generated locally in the wallet.
+- The 10,000,000,000 TMR testnet supply is recorded in the genesis allocation state.
+
+If an old database already contains demo blocks, use the one-time reset described below.
+
+## Network
+
+- Network: `Thanvi Testnet`
+- Native coin: `TMR`
+- Chain ID: `TMR-CHAIN-1`
+- Consensus label: `Proof-of-Reputation`
+- Signature: Ed25519
+- Address prefix: `TMR1`
+- Genesis supply: `10,000,000,000 TMR`
+
+## Wallet
+
+Open `/wallet.html`.
+
+The wallet supports:
+
+- Create a new TMR1 wallet
+- Local Ed25519 signing
+- Encrypted backup/restore
+- Real balance from PostgreSQL-backed chain state
+- Real nonce
+- Real signed send transaction
+- Receive address
+- Testnet faucet transaction
+- Transaction activity
+
+Private keys are not sent to the API.
 
 ## API
-The frontend defaults to:
-https://tmr-blockchain.vercel.app
 
-It uses:
-- `/api/network`
-- `/api/blocks`
-- `/api/blocks/:height`
+- `GET /api`
+- `GET /api/health`
+- `GET /api/network`
+- `GET /api/coin`
+- `GET /api/validators`
+- `GET /api/validators/:id`
+- `GET /api/blocks`
+- `GET /api/blocks/:height`
+- `GET /api/transactions`
+- `GET /api/transactions/:hash`
+- `GET /api/address/:address`
+- `GET /api/search?q=...`
+- `POST /api/transactions`
+- `POST /api/faucet` (testnet only)
+- `POST /api/blocks/produce` (testnet block finalizer)
 
-The frontend is intentionally separate from the blockchain backend.
+## Block production
 
+The Explorer no longer calls the block producer on every page/API refresh by default.
 
-# TMR Blockchain — Persistent Database Edition
+Set:
 
-This version replaces the previous in-memory explorer data with PostgreSQL persistence.
-
-## What is persistent?
-
-- Blocks
-- Transactions
-- Validators
-- Validator reputation fields
-- Reputation events
-- Chain metadata
-
-## Important
-
-The repository does NOT contain a database password or database server.
-
-You must create a PostgreSQL database and add `DATABASE_URL` to Vercel Environment Variables.
-
-The application automatically creates its tables and a genesis block on first successful connection.
-
-It does NOT seed demo transactions or demo blocks.
-
-## Vercel
-
-1. Create a PostgreSQL database (Neon/Supabase/Vercel Postgres or another PostgreSQL provider).
-2. Copy its connection string.
-3. In Vercel:
-   Project → Settings → Environment Variables
-4. Add:
-   `DATABASE_URL`
-5. Redeploy.
-6. Open:
-   `/api/health`
-
-Expected storage response:
-
-```json
-{
-  "storage": "PostgreSQL",
-  "persistent": true
-}
+```env
+TMR_REQUEST_BLOCK_PRODUCTION=false
 ```
 
-## Local
+for a read-only Explorer deployment.
 
-Create `.env`:
+For a private testnet where request-driven finalization is acceptable, set it to `true`.
+
+For a more correct deployment, run `POST /api/blocks/produce` from a persistent validator/worker. If `TMR_BLOCK_PRODUCER_KEY` is configured, send it as the `x-tmr-producer-key` header.
+
+**This package is a PostgreSQL-backed testnet implementation. It is not a decentralized mainnet validator network by itself.** A real multi-node PoR network requires independent validator processes, peer networking, vote aggregation, and durable consensus state.
+
+## PostgreSQL
+
+Set `DATABASE_URL` in Vercel or your server environment.
+
+Example:
 
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
-NODE_ENV=development
+NODE_ENV=production
+TMR_NETWORK=testnet
+TMR_BLOCK_TIME_MS=12000
+TMR_FAUCET_AMOUNT=1000
+TMR_REQUEST_BLOCK_PRODUCTION=false
 ```
 
-Then:
+Do not commit `.env` or a real database URL.
 
-```bash
-npm install
-npm start
-```
+## Reset old/demo data once
 
-The database tables are created automatically.
-
-## API
-
-- GET `/api`
-- GET `/api/health`
-- GET `/api/network`
-- GET `/api/blocks`
-- GET `/api/blocks/:height`
-- GET `/api/transactions`
-- GET `/api/transactions/:hash`
-- GET `/api/validators`
-- GET `/api/validators/:id`
-- GET `/api/address/:address`
-- GET `/api/search?q=...`
-
-## Security
-
-Do not upload `.env` or a real `DATABASE_URL` to GitHub.
-
-
-## Transaction submission
-
-The Explorer now exposes `POST /api/transactions` .
-
-Example request:
-
-```json
-{
-  "from": "TMR-ADDRESS-A",
-  "to": "TMR-ADDRESS-B",
-  "amount": 100,
-  "nonce": 0
-}
-```
-
-This creates a `pending` transaction in PostgreSQL. The existing request-driven block producer includes pending transactions when the next block interval is due.
-
-**Security note:** this v1.2.0 demo endpoint does not verify cryptographic wallet signatures. Do not treat it as a production money-transfer API until signed transactions, replay protection, balance/state validation, and authorization are implemented.
-
-
-## TMR Wallet v1.3
-
-The explorer now includes a native browser wallet at `/wallet.html`. Wallet keys are generated with the browser Web Crypto API using Ed25519. The private key is kept in memory and is never sent to the server. Encrypted backups use PBKDF2-SHA256 + AES-256-GCM.
-
-TMR addresses use the `TMR1...` prefix and are derived from the SHA-256 hash of the raw Ed25519 public key. Signed transaction submission includes the public key and Ed25519 signature; the server verifies both the signature and the sender/address binding before accepting a transaction.
-
-The current PostgreSQL transaction amount column is an integer base unit (`NUMERIC(78,0)`). Decimal TMR denomination/18-decimal accounting should be added only when the native balance/state model is introduced.
-
-
-## Testnet v1.4
-See `TESTNET_DEPLOYMENT.md` for the 10B TMR genesis supply, faucet and wallet integration.
-
-
-## Reset an existing testnet once
-
-If an existing PostgreSQL database already contains old/demo blocks or transactions, add this Vercel environment variable for the next deployment:
+If the database currently contains the old fake/demo blocks visible in the screenshots, set:
 
 ```env
 TMR_RESET_TESTNET_CHAIN=true
 ```
 
-The migration deletes old transactions, non-genesis blocks, faucet claims and reputation events, then restores the three initial validators. A database marker prevents the reset from running again on every request. Remove the environment variable after the reset deployment.
+Deploy/start the application once, wait for `/api/health` to return successfully, then **remove the variable** and redeploy.
+
+The migration:
+
+1. Deletes transactions.
+2. Deletes non-genesis blocks.
+3. Deletes faucet claims.
+4. Deletes reputation events.
+5. Resets validator counters.
+6. Keeps only genesis block `#0`.
+7. Restores the 10B TMR genesis allocation.
+
+The migration marker prevents it from running on every request.
+
+## Local run
+
+```bash
+npm install
+npm run db:init
+npm start
+```
+
+Then open `/` for the Explorer and `/wallet.html` for the wallet.
+
+## License
+
+MIT. See `LICENSE`.

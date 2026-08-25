@@ -23,7 +23,13 @@ const chain = new TMRBlockchain();
 const TESTNET = process.env.TMR_NETWORK !== "mainnet";
 const TESTNET_TOTAL_SUPPLY = "10000000000";
 const TESTNET_FAUCET_AMOUNT = Number(process.env.TMR_FAUCET_AMOUNT || 1000);
-const TESTNET_FAUCET_ADDRESS = process.env.TMR_FAUCET_ADDRESS || "TMR1faucet000000000000000000000000";
+
+function deterministicFaucetAddress() {
+  const digest = crypto.createHash("sha256").update("thanvi-testnet-genesis-faucet-v2").digest();
+  return "TMR1" + base32Encode(digest.subarray(0, 20));
+}
+
+const TESTNET_FAUCET_ADDRESS = process.env.TMR_FAUCET_ADDRESS || deterministicFaucetAddress();
 
 function sendJSON(res, statusCode, data) {
   res.statusCode = statusCode;
@@ -206,12 +212,10 @@ async function getNetwork() {
     averageReputation,
     currentRound: stats.height + 1,
     latestBlockNumber: stats.height,
-    approvalRate: "100.00%",
-    votingStats: {
-      totalVotes: validators.length,
-      approvedVotes: validators.length,
-      rejectedVotes: 0
-    }
+    // Vote-level metrics are not stored in this testnet database yet.
+    // Do not invent approval/vote counts in the Explorer.
+    approvalRate: null,
+    votingStats: null
   };
 }
 
@@ -237,13 +241,11 @@ async function handler(req, res) {
     const { pathname, searchParams } = parseURL(req);
 
     // ----------------------------------------------------------
-    // AUTOMATIC BLOCK PRODUCTION
+    // STATIC WALLET ROUTES
     // ----------------------------------------------------------
-    // Vercel runs serverless requests instead of a permanent
-    // Node.js process. Trigger the existing block-production
-    // routine whenever an API request arrives. PostgreSQL
-    // advisory locking inside produceNextBlockIfDue() prevents
-    // concurrent requests from creating duplicate blocks.
+    // The Explorer never creates blocks. Optional request-driven
+    // finalization can be enabled explicitly for a private testnet
+    // with TMR_REQUEST_BLOCK_PRODUCTION=true.
     if (pathname === "/wallet" || pathname === "/wallet.html") {
       return sendFile(res, path.join(__dirname, "public", "wallet.html"));
     }
@@ -256,7 +258,7 @@ async function handler(req, res) {
       return sendFile(res, path.join(__dirname, "public", "wallet.css"));
     }
 
-    if (pathname.startsWith("/api/")) {
+    if (pathname.startsWith("/api/") && process.env.TMR_REQUEST_BLOCK_PRODUCTION === "true") {
       try {
         await chain.produceNextBlockIfDue();
       } catch (productionError) {
@@ -433,6 +435,24 @@ async function handler(req, res) {
         blocks,
         timestamp: new Date().toISOString()
       });
+    }
+
+    if (pathname === "/api/blocks/produce" && req.method === "POST") {
+      const configuredKey = process.env.TMR_BLOCK_PRODUCER_KEY;
+      const suppliedKey = req.headers["x-tmr-producer-key"];
+      if (configuredKey && suppliedKey !== configuredKey) {
+        return sendJSON(res, 401, { success: false, error: "Invalid block producer key" });
+      }
+
+      const block = await chain.produceNextBlockIfDue();
+      if (!block) {
+        return sendJSON(res, 200, {
+          success: true,
+          produced: false,
+          message: "No block produced. The chain advances only when real pending transactions exist and the block interval is due."
+        });
+      }
+      return sendJSON(res, 201, { success: true, produced: true, block });
     }
 
     if (pathname.startsWith("/api/blocks/")) {
