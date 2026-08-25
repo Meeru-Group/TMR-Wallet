@@ -11,7 +11,6 @@
 // AUTO API BASE
 const API_BASE = window.location.origin;
 
-console.log("TMR API BASE:", API_BASE);
 console.log("TMR API BASE:", API_BASE || window.location.origin);
 
 
