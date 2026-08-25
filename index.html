@@ -2,27 +2,80 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TMR Wallet</title><link rel="stylesheet" href="src/style.css">
+<meta name="description" content="TMR Wallet — non-custodial wallet for TMR Blockchain">
+<title>TMR Wallet</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="app">
-<header><div class="brand"><div class="logo">T</div><div><b>TMR Wallet</b><small>Secure • Non-custodial</small></div></div><button id="settings">⚙</button></header>
+<div class="shell">
+<header class="top">
+  <div class="brand"><div class="coin">T</div><div><b>TMR Wallet</b><small>World Treasury Management Reserve</small></div></div>
+  <button id="settingsBtn" class="icon">⚙</button>
+</header>
 
-<section class="network"><span id="dot">●</span> TMR Blockchain <span id="networkText">Connecting…</span></section>
+<div id="network" class="network"><span id="networkDot">●</span><span id="networkText">Connecting to TMR Blockchain…</span><span id="chainId"></span></div>
 
-<section class="balance">
-<small>Total TMR Balance</small><h1 id="balance">0.0000 TMR</h1>
-<div id="address" class="address">No wallet</div>
-<button id="copy">Copy Address</button>
+<section class="hero">
+  <div class="eyebrow">TOTAL BALANCE</div>
+  <h1 id="balance">0 <span>TMR</span></h1>
+  <button id="address" class="address" title="Copy address">Create wallet to get a TMR1 address</button>
+  <div><button id="copyAddress" class="pill">Copy address</button></div>
 </section>
 
-<div class="actions"><button id="send">↑<span>Send</span></button><button id="receive">↓<span>Receive</span></button><button id="create">＋<span>Wallet</span></button></div>
+<nav class="actions">
+  <button id="sendBtn"><strong>↑</strong><span>Send</span></button>
+  <button id="receiveBtn"><strong>↓</strong><span>Receive</span></button>
+  <button id="walletBtn"><strong>＋</strong><span>Wallet</span></button>
+</nav>
 
-<section class="card"><div class="title"><h2>Activity</h2><button id="refresh">Refresh</button></div><div id="activity" class="muted">Create or restore a wallet.</div></section>
+<section id="sendPanel" class="panel hidden">
+  <div class="panelHead"><h2>Send TMR</h2><button class="close" data-close="sendPanel">×</button></div>
+  <label>Recipient TMR1 address</label><input id="to" placeholder="TMR1…">
+  <label>Amount</label><input id="amount" type="number" min="1" step="1" placeholder="0">
+  <button id="signSend" class="primary">Sign & Broadcast</button>
+  <p id="sendStatus" class="statusText"></p>
+</section>
 
-<section id="walletCard" class="card hidden"><h2>Wallet</h2><p><b>Address</b></p><div id="fullAddress" class="mono box"></div><p><b>Public Key</b></p><div id="publicKey" class="mono box"></div><div class="warning">Never share your private key or backup file.</div><button id="backup">Backup Wallet</button><button id="delete" class="danger">Delete Local Wallet</button></section>
+<section id="receivePanel" class="panel hidden">
+  <div class="panelHead"><h2>Receive TMR</h2><button class="close" data-close="receivePanel">×</button></div>
+  <p class="muted">Send TMR to this address. The balance changes only after the blockchain finalizes a valid transaction.</p>
+  <div id="receiveAddress" class="addressBox">—</div>
+  <button id="copyReceive" class="primary">Copy address</button>
+</section>
 
-<section class="card"><h2>Restore</h2><input type="file" id="restoreFile" accept=".json,.tmrwallet"><p id="msg" class="muted"></p></section>
+<section class="panel">
+  <div class="panelHead"><h2>Activity</h2><button id="refresh" class="pill">Refresh</button></div>
+  <div id="activity" class="muted">Create or restore a wallet.</div>
+</section>
+
+<section id="walletPanel" class="panel hidden">
+  <div class="panelHead"><h2>Wallet Security</h2><button class="close" data-close="walletPanel">×</button></div>
+  <label>Wallet address</label><div id="fullAddress" class="addressBox"></div>
+  <label>Public key</label><div id="publicKey" class="addressBox mono"></div>
+  <div class="warning">Private keys never leave this browser. Do not upload wallet backups or private keys to GitHub.</div>
+  <button id="backup" class="secondary">Backup wallet</button>
+  <button id="deleteWallet" class="danger">Delete local wallet</button>
+</section>
+
+<section class="panel">
+  <h2>Blockchain</h2>
+  <div class="stats">
+    <div><small>Latest block</small><b id="height">—</b></div>
+    <div><small>Blocks</small><b id="blocks">—</b></div>
+    <div><small>Consensus</small><b id="consensus">—</b></div>
+    <div><small>Nonce</small><b id="nonce">—</b></div>
+  </div>
+  <p class="muted">TMR Wallet connects directly to the configured TMR Blockchain API. Wallet signing is performed locally with Ed25519.</p>
+</section>
+
+<section class="panel">
+  <h2>Restore Wallet</h2>
+  <input id="restore" type="file" accept=".json,.tmrwallet">
+  <p id="message" class="muted"></p>
+</section>
+
+<footer>TMR Wallet • TMR Blockchain • Non-custodial</footer>
 </div>
-<script type="module" src="src/wallet.js"></script>
-</body></html>
+<script type="module" src="wallet.js"></script>
+</body>
+</html>
