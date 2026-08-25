@@ -1,53 +1,87 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
   <title>TMR Wallet</title>
   <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
-  <main class="container">
-    <header>
-      <h1>🔐 TMR Wallet</h1>
-      <p>Native wallet • TMR1 address format</p>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="logo">T</span><div><strong>TMR Wallet</strong><small>World Treasury Management Reserve</small></div></div>
+      <div id="connection" class="pill offline">● Offline</div>
     </header>
 
-    <section class="card">
-      <h2>Create Wallet</h2>
-      <p class="muted">Your private key is generated locally in this browser.</p>
-      <button id="create">Create New Wallet</button>
+    <section class="hero">
+      <div>
+        <span class="eyebrow">NATIVE TMR WALLET</span>
+        <h1>Your keys. Your TMR.</h1>
+        <p>Create a <b>TMR1...</b> wallet and connect it to the live TMR Blockchain API.</p>
+      </div>
+      <button id="create" class="primary">Create Wallet</button>
     </section>
 
-    <section id="wallet" class="card hidden">
-      <h2>Your Wallet</h2>
-      <label>Address</label>
-      <div class="value mono" id="address">—</div>
+    <section id="walletCard" class="card hidden">
+      <div class="cardhead"><div><span class="eyebrow">WALLET</span><h2 id="shortAddress">TMR1…</h2></div><button id="copyAddress" class="ghost">Copy address</button></div>
+      <div class="balance"><span>Balance</span><strong id="balance">— TMR</strong><small id="balanceMeta">Connect to blockchain to load balance</small></div>
+      <div class="grid2">
+        <div><label>Address</label><div id="address" class="mono value">—</div></div>
+        <div><label>Public Key</label><div id="publicKey" class="mono value">—</div></div>
+      </div>
+      <div class="warning">🔐 Your private key never needs to be sent to the blockchain API. Back it up securely.</div>
+      <div class="actions"><button id="backup" class="secondary">Encrypted Backup</button><button id="delete" class="danger">Delete Wallet</button></div>
+    </section>
 
-      <label>Public Key</label>
-      <div class="value mono" id="publicKey">—</div>
-
-      <label>Private Key</label>
-      <div class="value mono secret" id="privateKey">—</div>
-
-      <div class="warning">
-        ⚠️ Never share your private key. Anyone with it can control the wallet.
+    <section class="grid2">
+      <div class="card">
+        <div class="cardhead"><div><span class="eyebrow">NETWORK</span><h2>TMR Blockchain</h2></div><button id="refresh" class="ghost">Refresh</button></div>
+        <div class="stats">
+          <div><span>Chain ID</span><b id="chainId">—</b></div>
+          <div><span>Latest block</span><b id="height">—</b></div>
+          <div><span>Validators</span><b id="validators">—</b></div>
+          <div><span>Consensus</span><b id="consensus">—</b></div>
+        </div>
+        <label>Blockchain API</label>
+        <div class="apirow"><input id="apiBase" value="https://tmr-blockchain.vercel.app" spellcheck="false"><button id="connect" class="secondary">Connect</button></div>
+        <p id="apiMessage" class="muted">Read-only connection: health, network, address balance and transaction history.</p>
       </div>
 
-      <div class="grid">
-        <button id="download">Download Backup</button>
-        <button id="clear" class="danger">Delete Local Wallet</button>
+      <div class="card">
+        <div class="cardhead"><div><span class="eyebrow">SECURITY</span><h2>Wallet protection</h2></div></div>
+        <ul class="checks">
+          <li>Private key generated locally</li>
+          <li>Private key is not sent to the API</li>
+          <li>Address starts with <b>TMR1</b></li>
+          <li>Encrypted backup available</li>
+        </ul>
       </div>
     </section>
 
     <section class="card">
-      <h2>Restore Wallet</h2>
-      <textarea id="backup" placeholder="Paste your wallet backup JSON here"></textarea>
-      <button id="restore">Restore</button>
+      <div class="cardhead"><div><span class="eyebrow">ACTIVITY</span><h2>Transactions</h2></div><button id="loadTx" class="ghost">Refresh</button></div>
+      <div id="transactions" class="empty">Create a wallet and connect to see transactions.</div>
+    </section>
+
+    <section class="card">
+      <span class="eyebrow">SEND</span>
+      <h2>Send TMR</h2>
+      <p class="muted">The current TMR Blockchain API exposes transaction reads and an unsigned transaction writer. Real-value sending must use a signature-verifying endpoint before this wallet enables it.</p>
+      <div class="grid2">
+        <div><label>Recipient</label><input id="recipient" placeholder="TMR1..."></div>
+        <div><label>Amount</label><input id="amount" inputmode="decimal" placeholder="0"></div>
+      </div>
+      <button class="primary" disabled>Send — waiting for signed transaction API</button>
+    </section>
+
+    <section class="card">
+      <span class="eyebrow">RESTORE</span>
+      <h2>Restore encrypted backup</h2>
+      <input type="file" id="backupFile" accept=".tmrwallet,.json">
       <p id="message" class="muted"></p>
     </section>
-  </main>
-
+  </div>
   <script type="module" src="src/wallet.js"></script>
 </body>
 </html>
