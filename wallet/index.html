@@ -1,1 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TMR Wallet</title><link rel="stylesheet" href="src/style.css"></head>
+<body>
+<div class="app">
+<header><div class="brand"><div class="logo">T</div><div><b>TMR Wallet</b><small>Non-custodial • TMR Blockchain</small></div></div><span id="status">● Offline</span></header>
+<section class="network"><span id="networkText">Connecting…</span></section>
+<section class="balance"><small>Total balance</small><h1 id="balance">0 TMR</h1><div id="address" class="address">Create a wallet</div><button id="copy">Copy address</button></section>
+<div class="actions"><button id="send">↑<span>Send</span></button><button id="receive">↓<span>Receive</span></button><button id="create">＋<span>Wallet</span></button></div>
 
+<section id="sendPanel" class="card hidden"><div class="title"><h2>Send TMR</h2><button id="closeSend">Close</button></div>
+<label>Recipient TMR1 address</label><input id="recipient" placeholder="TMR1...">
+<label>Amount</label><input id="amount" inputmode="decimal" placeholder="0">
+<button id="sendConfirm" class="primary">Sign & Send</button><p id="sendMsg" class="muted"></p></section>
+
+<section id="receivePanel" class="card hidden"><div class="title"><h2>Receive TMR</h2><button id="closeReceive">Close</button></div>
+<div id="receiveAddress" class="receiveAddress">—</div><button id="copyReceive" class="primary">Copy address</button>
+<p class="muted">This is your real on-chain TMR address. Incoming TMR is credited only when a valid signed transaction is finalized by the blockchain.</p></section>
+
+<section class="card"><div class="title"><h2>Activity</h2><button id="refresh">Refresh</button></div><div id="activity" class="muted">No transactions yet.</div></section>
+
+<section id="walletCard" class="card hidden"><h2>Wallet</h2><label>Address</label><div id="fullAddress" class="mono box"></div>
+<label>Public key</label><div id="publicKey" class="mono box"></div><div class="warning">Private key stays in this browser. Never upload your backup to GitHub.</div>
+<button id="backup" class="secondary">Backup Wallet</button><button id="delete" class="danger">Delete Local Wallet</button></section>
+
+<section class="card"><h2>Restore</h2><input type="file" id="restoreFile" accept=".json,.tmrwallet"><p id="msg" class="muted"></p></section>
+</div><script type="module" src="src/wallet.js"></script></body></html>
