@@ -5,7 +5,7 @@
 // ============================================================
 
 const fs = require("fs");
-const crypto = require("crypto");
+const crypto = require("node:crypto");
 const path = require("path");
 const TMRBlockchain = require("./blockchain");
 const db = require("./database");

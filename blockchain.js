@@ -4,7 +4,7 @@
 // Vercel compatible block production
 // ============================================================
 
-const crypto = require("crypto");
+const crypto = require("node:crypto");
 const db = require("./database");
 
 const BLOCK_TIME_MS = Math.max(

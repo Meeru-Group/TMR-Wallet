@@ -9,7 +9,7 @@
  * - Conflicting vote detection
  */
 
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 class Vote {
   constructor(validatorId, blockHash, blockNumber, voterId) {

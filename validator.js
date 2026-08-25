@@ -8,7 +8,7 @@
  * - On-chain identity and status
  */
 
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 class Validator {
   constructor(validatorId, publicKey, initialReputation = 500) {

@@ -7,7 +7,7 @@
  * - Include lower-reputation validators for network resilience
  */
 
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 class ValidatorSelector {
   constructor(config, reputationCalculator) {
