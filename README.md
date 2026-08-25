@@ -1,131 +1,53 @@
-# TMR Blockchain Explorer
+# TMR Wallet + Real Transaction API
 
-This folder contains a simple mobile-friendly explorer frontend.
+This package separates the wallet from the blockchain API.
 
-## Run locally
-Open `index.html` with a static server.
+## What is real
 
-## API
-The frontend defaults to:
-https://tmr-blockchain.vercel.app
+The wallet:
+- generates an Ed25519 key pair locally
+- derives a TMR1 address from the public key
+- signs the canonical transaction locally
+- sends only the signed transaction to the API
+- reads balance/nonce/transactions from the API
 
-It uses:
-- `/api/network`
-- `/api/blocks`
-- `/api/blocks/:height`
+The blockchain API:
+- validates TMR1 address format
+- verifies public-key/address binding
+- verifies the Ed25519 signature
+- checks nonce
+- checks balance
+- places valid transactions in a mempool
+- finalizes them into a block and updates balances
 
-The frontend is intentionally separate from the blockchain backend.
+## Important deployment note
 
+The supplied TMR Blockchain server did not contain a public signed-transaction endpoint. This package therefore includes the required real transaction engine as `blockchain/server.js`.
 
-# TMR Blockchain — Persistent Database Edition
+For production, the `/api/blocks/finalize` local finalizer MUST be replaced by the existing Proof-of-Reputation validator voting/finalization engine. Do not expose that endpoint publicly as an unrestricted block producer.
 
-This version replaces the previous in-memory explorer data with PostgreSQL persistence.
+## Initial supply
 
-## What is persistent?
+`TMR_TOTAL_SUPPLY=10000000000` defines the declared supply, but it does NOT secretly credit a wallet. A real genesis allocation must explicitly assign supply to one or more genesis addresses in the blockchain genesis state.
 
-- Blocks
-- Transactions
-- Validators
-- Validator reputation fields
-- Reputation events
-- Chain metadata
-
-## Important
-
-The repository does NOT contain a database password or database server.
-
-You must create a PostgreSQL database and add `DATABASE_URL` to Vercel Environment Variables.
-
-The application automatically creates its tables and a genesis block on first successful connection.
-
-It does NOT seed demo transactions or demo blocks.
-
-## Vercel
-
-1. Create a PostgreSQL database (Neon/Supabase/Vercel Postgres or another PostgreSQL provider).
-2. Copy its connection string.
-3. In Vercel:
-   Project → Settings → Environment Variables
-4. Add:
-   `DATABASE_URL`
-5. Redeploy.
-6. Open:
-   `/api/health`
-
-Expected storage response:
-
-```json
-{
-  "storage": "PostgreSQL",
-  "persistent": true
-}
-```
-
-## Local
-
-Create `.env`:
-
-```env
-DATABASE_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
-NODE_ENV=development
-```
-
-Then:
+## Run
 
 ```bash
+cd blockchain
 npm install
 npm start
 ```
 
-The database tables are created automatically.
+Then open `wallet/index.html` from a local HTTPS/localhost web server and create a wallet.
 
-## API
+## Real Receive
 
-- GET `/api`
-- GET `/api/health`
-- GET `/api/network`
-- GET `/api/blocks`
-- GET `/api/blocks/:height`
-- GET `/api/transactions`
-- GET `/api/transactions/:hash`
-- GET `/api/validators`
-- GET `/api/validators/:id`
-- GET `/api/address/:address`
-- GET `/api/search?q=...`
+Receive is the wallet's real TMR1 address. Another funded account must send a signed transaction to it. There is no fake faucet.
 
-## Security
+## Real Send
 
-Do not upload `.env` or a real `DATABASE_URL` to GitHub.
+The sender signs locally. The API verifies the signature, nonce and balance before accepting the transaction.
 
+## Production hardening
 
-## Transaction submission
-
-The Explorer now exposes `POST /api/transactions` and a demo transaction form.
-
-Example request:
-
-```json
-{
-  "from": "TMR-ADDRESS-A",
-  "to": "TMR-ADDRESS-B",
-  "amount": 100,
-  "nonce": 0
-}
-```
-
-This creates a `pending` transaction in PostgreSQL. The existing request-driven block producer includes pending transactions when the next block interval is due.
-
-**Security note:** this v1.2.0 demo endpoint does not verify cryptographic wallet signatures. Do not treat it as a production money-transfer API until signed transactions, replay protection, balance/state validation, and authorization are implemented.
-
-
-## TMR Wallet v1.3
-
-The explorer now includes a native browser wallet at `/wallet.html`. Wallet keys are generated with the browser Web Crypto API using Ed25519. The private key is kept in memory and is never sent to the server. Encrypted backups use PBKDF2-SHA256 + AES-256-GCM.
-
-TMR addresses use the `TMR1...` prefix and are derived from the SHA-256 hash of the raw Ed25519 public key. Signed transaction submission includes the public key and Ed25519 signature; the server verifies both the signature and the sender/address binding before accepting a transaction.
-
-The current PostgreSQL transaction amount column is an integer base unit (`NUMERIC(78,0)`). Decimal TMR denomination/18-decimal accounting should be added only when the native balance/state model is introduced.
-
-
-## Testnet v1.4
-See `TESTNET_DEPLOYMENT.md` for the 10B TMR genesis supply, faucet and wallet integration.
+Use PostgreSQL or another durable consensus-backed state store, HTTPS, validator signatures/voting, replay protection across forks, deterministic serialization, rate limits, audit logs and a security review before real-value deployment.
