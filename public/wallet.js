@@ -108,4 +108,27 @@ async function crosschainStatus(){try{await pollCrossStatus()}catch(e){msg("cros
 async function initCrosschain(){try{const c=await crosschainConfig();$("crossStatus").textContent=c.bridge.relayerConfigured?"REAL BRIDGE":"CONFIG NEEDED";$("crossExecute").disabled=true;if(c.bridge.evmChainId){$("evmFrom").value=String(c.bridge.evmChainId);$("evmTo").value=String(c.bridge.evmChainId);$("evmFrom").textContent="EVM Bridge Testnet ("+c.bridge.evmChainId+")";$("evmTo").textContent="EVM Bridge Testnet ("+c.bridge.evmChainId+")";}}catch(e){$("crossStatus").textContent="OFFLINE"}}
 $("crossQuote").onclick=crosschainQuote;$("crossExecute").onclick=executeCrosschain;$("crossRefresh").onclick=crosschainStatus;$("connectEvm").onclick=connectEvm;
 
-wallet=load();if(wallet)show();refresh();initCrosschain();
+async function testRpc(method, params=[]){
+  const r=await fetch("/rpc",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",method,params,id:1}),cache:"no-store"});
+  const d=await r.json();
+  if(d.error) throw Error(d.error.message||"RPC error");
+  return d.result;
+}
+async function initRpc(){
+  try{
+    const chainId=await testRpc("tmr_chainId");
+    const height=await testRpc("tmr_blockNumber");
+    $("rpcStatus").textContent="ONLINE";
+    $("rpcStatus").style.color="#86efac";
+    $("rpcEndpoint").textContent=window.location.origin+"/rpc";
+    $("rpcMsg").textContent=`RPC connected • ${chainId} • block ${height}`;
+  }catch(e){
+    $("rpcStatus").textContent="OFFLINE";
+    $("rpcStatus").style.color="#ef4444";
+    $("rpcMsg").textContent="RPC unavailable: "+e.message;
+  }
+}
+$("rpcChainTest").onclick=async()=>{try{const x=await testRpc("tmr_chainId");msg("rpcMsg","Chain ID: "+x,true)}catch(e){msg("rpcMsg","RPC failed: "+e.message)}};
+$("rpcBlockTest").onclick=async()=>{try{const x=await testRpc("tmr_blockNumber");msg("rpcMsg","Latest block: "+x,true)}catch(e){msg("rpcMsg","RPC failed: "+e.message)}};
+
+wallet=load();if(wallet)show();refresh();initCrosschain();initRpc();

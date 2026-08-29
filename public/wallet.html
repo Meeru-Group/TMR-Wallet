@@ -77,6 +77,17 @@
   </section>
 
   <section class="card section"><div class="sectionHead"><h2>Network</h2><span class="live">● LIVE</span></div><div class="grid"><div><small>Block height</small><b id="height">—</b></div><div><small>Transactions</small><b id="txCount">—</b></div><div><small>Validators</small><b id="validators">—</b></div><div><small>Consensus</small><b id="consensus">Proof-of-Reputation</b></div></div></section>
+
+  <section class="card section">
+    <div class="sectionHead"><h2>RPC</h2><span class="live" id="rpcStatus">CHECKING</span></div>
+    <p class="crossHint">Real database-backed JSON-RPC endpoint. Browser GET checks are read-only; wallets and applications can use standard JSON-RPC POST.</p>
+    <div class="addressBox" id="rpcEndpoint">/rpc</div>
+    <div class="two">
+      <button id="rpcChainTest" class="ghost">Test Chain ID</button>
+      <button id="rpcBlockTest" class="ghost">Test Block</button>
+    </div>
+    <div id="rpcMsg" class="msg"></div>
+  </section>
   <section class="card section"><div class="sectionHead"><h2>Wallet</h2><button id="copyAddress" class="mini">Copy</button></div><div class="addressBox" id="fullAddress">—</div><div class="keyLabel">Public key</div><div class="addressBox" id="publicKey">—</div><div class="warning">Never share your private key or backup password. This wallet signs transactions locally.</div><div class="two"><button id="exportBackup" class="ghost">Encrypted Backup</button><button id="forgetWallet" class="danger">Delete Wallet</button></div></section>
 </section>
 
