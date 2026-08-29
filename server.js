@@ -259,6 +259,143 @@ async function handler(req, res) {
     }
 
     // ----------------------------------------------------------
+    // REAL TMR JSON-RPC
+    // ----------------------------------------------------------
+    // POST /rpc implements JSON-RPC 2.0.
+    // GET /rpc?method=... is read-only browser diagnostics.
+    // Both paths read the same PostgreSQL-backed chain state.
+    if (pathname === "/rpc") {
+      const rpcResponse = (status, payload) => {
+        res.statusCode = status;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(JSON.stringify(payload));
+      };
+
+      const executeRpc = async (method, params) => {
+        switch (method) {
+          case "tmr_chainId":
+            return "TMR-CHAIN-1";
+
+          case "tmr_blockNumber": {
+            const latest = await chain.getLatestBlock();
+            return latest ? Number(latest.height) : 0;
+          }
+
+          case "tmr_getNetwork":
+            return await chain.getNetworkStats();
+
+          case "tmr_getBlockByNumber": {
+            const value = params?.[0];
+            if (value === undefined || value === null) {
+              throw Object.assign(new Error("block height is required"), { code: -32602 });
+            }
+            const height = typeof value === "string" && /^0x/i.test(value)
+              ? parseInt(value, 16)
+              : Number(value);
+            if (!Number.isInteger(height) || height < 0) {
+              throw Object.assign(new Error("invalid block height"), { code: -32602 });
+            }
+            return await chain.getBlock(height);
+          }
+
+          case "tmr_getBlockByHash": {
+            const hash = params?.[0];
+            if (!hash) {
+              throw Object.assign(new Error("block hash is required"), { code: -32602 });
+            }
+            return await chain.getBlock(String(hash));
+          }
+
+          case "tmr_getTransactionByHash": {
+            const hash = params?.[0];
+            if (!hash) {
+              throw Object.assign(new Error("transaction hash is required"), { code: -32602 });
+            }
+            return await chain.getTransaction(String(hash));
+          }
+
+          case "tmr_getBalance": {
+            const address = params?.[0];
+            if (!address) {
+              throw Object.assign(new Error("TMR address is required"), { code: -32602 });
+            }
+            return await chain.getAddress(String(address));
+          }
+
+          default:
+            throw Object.assign(
+              new Error("Method not found"),
+              { code: -32601 }
+            );
+        }
+      };
+
+      // Browser-friendly GET: strictly read-only.
+      if (req.method === "GET") {
+        const method = searchParams.get("method");
+        const params = [];
+        for (const key of ["height", "hash", "address"]) {
+          const value = searchParams.get(key);
+          if (value !== null) params.push(value);
+        }
+
+        try {
+          const result = await executeRpc(method, params);
+          return rpcResponse(200, {
+            jsonrpc: "2.0",
+            result,
+            id: null,
+            mode: "browser-readonly"
+          });
+        } catch (e) {
+          return rpcResponse(200, {
+            jsonrpc: "2.0",
+            error: { code: Number(e.code || -32000), message: e.message || "RPC error" },
+            id: null,
+            mode: "browser-readonly"
+          });
+        }
+      }
+
+      if (req.method === "POST") {
+        try {
+          const body = await parseJSONBody(req);
+          if (!body || body.jsonrpc !== "2.0" || typeof body.method !== "string") {
+            return rpcResponse(200, {
+              jsonrpc: "2.0",
+              error: { code: -32600, message: "Invalid JSON-RPC 2.0 request" },
+              id: body?.id ?? null
+            });
+          }
+
+          const result = await executeRpc(body.method, Array.isArray(body.params) ? body.params : []);
+          return rpcResponse(200, {
+            jsonrpc: "2.0",
+            result,
+            id: body.id ?? null
+          });
+        } catch (e) {
+          const status = e?.code === -32600 ? 200 : 200;
+          return rpcResponse(status, {
+            jsonrpc: "2.0",
+            error: { code: Number(e.code || -32000), message: e.message || "RPC error" },
+            id: null
+          });
+        }
+      }
+
+      return rpcResponse(405, {
+        jsonrpc: "2.0",
+        error: { code: -32600, message: "RPC requires GET diagnostics or POST JSON-RPC" },
+        id: null
+      });
+    }
+
+    // ----------------------------------------------------------
     // STATIC WALLET ROUTES
     // ----------------------------------------------------------
     // The Explorer never creates blocks. Optional request-driven
