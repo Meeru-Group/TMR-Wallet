@@ -413,7 +413,10 @@ async function handler(req, res) {
       return sendFile(res, path.join(__dirname, "public", "wallet.css"));
     }
 
-    if (pathname.startsWith("/api/") && process.env.TMR_REQUEST_BLOCK_PRODUCTION === "true") {
+    const requestBlockProduction =
+      String(process.env.TMR_REQUEST_BLOCK_PRODUCTION ?? (TESTNET ? "true" : "false")).toLowerCase() === "true";
+
+    if (pathname.startsWith("/api/") && requestBlockProduction) {
       try {
         await chain.produceNextBlockIfDue();
       } catch (productionError) {
@@ -593,6 +596,38 @@ async function handler(req, res) {
         blocks,
         timestamp: new Date().toISOString()
       });
+    }
+
+    // Testnet-only request-driven producer. The wallet calls this endpoint
+    // periodically so pending transactions do not remain stuck when the
+    // backend is deployed as a request-driven service such as Vercel.
+    if (pathname === "/api/blocks/produce-testnet" && req.method === "POST") {
+      if (!TESTNET) {
+        return sendJSON(res, 403, {
+          success: false,
+          produced: false,
+          error: "Testnet block production endpoint only"
+        });
+      }
+
+      try {
+        const block = await chain.produceNextBlockIfDue();
+        return sendJSON(res, block ? 201 : 200, {
+          success: true,
+          produced: Boolean(block),
+          block: block || null,
+          message: block
+            ? "Testnet block finalized"
+            : "No block produced. Waiting for a pending transaction, active validator, or block interval."
+        });
+      } catch (error) {
+        console.error("Testnet block production error:", error);
+        return sendJSON(res, 500, {
+          success: false,
+          produced: false,
+          error: error.message
+        });
+      }
     }
 
     if (pathname === "/api/blocks/produce" && req.method === "POST") {

@@ -70,14 +70,14 @@ The Explorer never creates blocks just because a page is opened or refreshed. A 
 Set:
 
 ```env
-TMR_REQUEST_BLOCK_PRODUCTION=false
+TMR_REQUEST_BLOCK_PRODUCTION=true
 TMR_BLOCK_PRODUCER_KEY=change-this-to-a-long-random-secret
 TMR_VALIDATORS_JSON=[{"id":"validator-01","publicKey":"BASE64_RAW_ED25519_PUBLIC_KEY","reputation":500}]
 ```
 
 for a read-only Explorer deployment.
 
-For a private testnet where request-driven finalization is acceptable, set it to `true`.
+For this testnet build, request-driven finalization is enabled by default. The wallet periodically triggers the testnet producer, so pending transactions are normally finalized automatically.
 
 For production-style testnet operation, run `POST /api/blocks/produce` from a persistent validator/worker. If `TMR_BLOCK_PRODUCER_KEY` is configured, send it as the `x-tmr-producer-key` header. The worker must be paired with a real validator identity in `TMR_VALIDATORS_JSON`.
 
@@ -115,7 +115,7 @@ NODE_ENV=production
 TMR_NETWORK=testnet
 TMR_BLOCK_TIME_MS=12000
 TMR_FAUCET_AMOUNT=1000
-TMR_REQUEST_BLOCK_PRODUCTION=false
+TMR_REQUEST_BLOCK_PRODUCTION=true
 TMR_BLOCK_PRODUCER_KEY=change-this-to-a-long-random-secret
 TMR_VALIDATORS_JSON=[{"id":"validator-01","publicKey":"BASE64_RAW_ED25519_PUBLIC_KEY","reputation":500}]
 ```

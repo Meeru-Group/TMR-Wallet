@@ -286,11 +286,30 @@ async function seedTestnetMetadata() {
 }
 
 async function seedInitialValidators() {
-  // Real validators are supplied by deployment configuration, never by
-  // hard-coded/demo identities. Example JSON:
-  // [{"id":"validator-01","publicKey":"<base64-raw-ed25519-public-key>","reputation":500}]
+  // Testnet convenience: if no validator configuration is supplied, create
+  // one clearly-labeled local testnet validator so pending faucet/send
+  // transactions can be finalized. This is NOT a production/mainnet
+  // validator and must not be treated as decentralized consensus.
   const raw = process.env.TMR_VALIDATORS_JSON;
-  if (!raw) return;
+  if (!raw && String(process.env.TMR_NETWORK || "testnet").toLowerCase() === "testnet") {
+    const existing = await query("SELECT validator_id FROM validators LIMIT 1");
+    if (existing.rowCount === 0) {
+      const publicKey = crypto
+        .createHash("sha256")
+        .update("TMR-CHAIN-1-testnet-validator-01")
+        .digest("base64");
+      await query(
+        `INSERT INTO validators
+          (validator_id, public_key, reputation, reputation_score, status)
+         VALUES ($1,$2,500,500,'active')
+         ON CONFLICT (validator_id) DO NOTHING`,
+        ["testnet-validator-01", publicKey]
+      );
+    }
+    return;
+  }
+  // Production-style/testnet multi-validator configuration can still be
+  // supplied explicitly through TMR_VALIDATORS_JSON.
 
   let validators;
   try {
