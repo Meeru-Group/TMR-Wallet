@@ -43,23 +43,17 @@
 
   <section class="card section" id="crosschainSection">
     <div class="sectionHead"><h2>Cross-Chain</h2><span class="live" id="crossStatus">TESTNET</span></div>
-    <p class="crossHint">Move testnet assets between TMR and supported networks. TMR routes use the Thanvi testnet simulator; EVM ↔ EVM quotes can use 0x when configured.</p>
+    <p class="crossHint">Real testnet bridge: TMR locks into the bridge vault and mints wTMR on the configured EVM testnet. wTMR burns are released back to TMR. EVM ↔ EVM uses live 0x routing when configured.</p>
     <div class="crossGrid">
       <label>From
         <select id="crossFrom">
           <option value="TMR-CHAIN-1">TMR Testnet</option>
-          <option value="8453">Base</option>
-          <option value="1">Ethereum</option>
-          <option value="42161">Arbitrum</option>
-          <option value="137">Polygon</option>
+          <option id="evmFrom" value="EVM_TESTNET">EVM Bridge Testnet</option>
         </select>
       </label>
       <label>To
         <select id="crossTo">
-          <option value="8453">Base</option>
-          <option value="1">Ethereum</option>
-          <option value="42161">Arbitrum</option>
-          <option value="137">Polygon</option>
+          <option id="evmTo" value="EVM_TESTNET">EVM Bridge Testnet</option>
           <option value="TMR-CHAIN-1">TMR Testnet</option>
         </select>
       </label>
@@ -72,6 +66,10 @@
     </label>
     <div class="two">
       <button id="crossQuote" class="primary">Get Quote</button>
+      <button id="crossExecute" class="primary" disabled>Execute Bridge</button>
+    </div>
+    <div class="two">
+      <button id="connectEvm" class="ghost">Connect EVM Wallet</button>
       <button id="crossRefresh" class="ghost">Refresh Status</button>
     </div>
     <div id="crossMsg" class="msg"></div>

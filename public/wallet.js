@@ -27,56 +27,85 @@ async function send(){if(!wallet)return;const to=$("recipient").value.trim(),amo
 async function faucet(){if(!wallet)return;$("claimFaucet").disabled=true;msg("faucetMsg","Creating real testnet faucet transaction…");try{const r=await api("/api/faucet",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address:wallet.address})});msg("faucetMsg",`${r.message}. TX: ${r.transaction?.hash||"pending"}`,true);await refresh()}catch(e){msg("faucetMsg",e.message)}finally{$("claimFaucet").disabled=false}}
 $("createWallet").onclick=create;$("restoreWallet").onclick=()=>$("backupFile").click();$("backupFile").onchange=e=>e.target.files[0]&&restore(e.target.files[0]).catch(x=>msg("welcomeMsg",x.message));$("refreshTop").onclick=$("refresh").onclick=refresh;$("sendBtn").onclick=()=>$("sendPanel").classList.remove("hidden");$("receiveBtn").onclick=()=>$("receivePanel").classList.remove("hidden");$("faucetBtn").onclick=()=>$("faucetPanel").classList.remove("hidden");document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>$(b.dataset.close).classList.add("hidden"));$("sendButton").onclick=send;$("claimFaucet").onclick=faucet;$("copyAddress").onclick=$("address").onclick=$("copyReceive").onclick=async()=>{if(wallet){await navigator.clipboard.writeText(wallet.address);alert("TMR address copied")}};$("exportBackup").onclick=()=>encryptBackup().catch(e=>alert(e.message));$("forgetWallet").onclick=()=>{if(confirm("Delete this wallet from this browser? Backup first.")){localStorage.removeItem(STORE);location.reload()}};
 
-async function crosschainConfig(){return api("/api/crosschain/config")}
-function crossLabel(id){return id==="TMR-CHAIN-1"?"TMR Testnet":({"1":"Ethereum","8453":"Base","42161":"Arbitrum","137":"Polygon"}[id]||id)}
+let crossConfig=null;
+let lastCrossQuote=null;
+let evmAccount=null;
+async function crosschainConfig(){crossConfig=await api("/api/crosschain/config");return crossConfig}
+function crossLabel(id){if(id==="TMR-CHAIN-1")return "TMR Testnet"; if(crossConfig?.bridge?.evmChainId && String(id)===String(crossConfig.bridge.evmChainId))return "EVM Bridge Testnet ("+id+")"; return ({"1":"Ethereum","8453":"Base","42161":"Arbitrum","137":"Polygon"}[id]||id)}
+function isValidTmr(x){return /^TMR1[a-z2-7]{32}$/.test(String(x||""))}
+function isEvm(x){return /^0x[a-fA-F0-9]{40}$/.test(String(x||""))}
+function bridgeActionText(q){return q.originChain==="TMR-CHAIN-1"?"Execute TMR Lock":"Execute EVM Burn"}
+async function connectEvm(){
+  if(!window.ethereum)return msg("crossMsg","Install/open an EVM wallet such as MetaMask to use EVM → TMR.");
+  try{
+    const accounts=await window.ethereum.request({method:"eth_requestAccounts"});
+    evmAccount=accounts[0];
+    $("connectEvm").textContent="EVM: "+evmAccount.slice(0,6)+"…"+evmAccount.slice(-4);
+    msg("crossMsg","EVM wallet connected.",true);
+  }catch(e){msg("crossMsg",e.message||"EVM wallet connection failed")}
+}
+async function ensureEvmNetwork(){
+  const chainId=Number(crossConfig?.bridge?.evmChainId||0); if(!chainId)throw Error("EVM bridge chain is not configured");
+  const hex="0x"+chainId.toString(16);
+  const current=await window.ethereum.request({method:"eth_chainId"});
+  if(current.toLowerCase()===hex.toLowerCase())return;
+  try{await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:hex}]})}
+  catch(e){throw Error("Switch your EVM wallet to the bridge testnet (chain "+chainId+")")}
+}
 async function crosschainQuote(){
   if(!wallet)return;
-  const from=$("crossFrom").value,to=$("crossTo").value;
-  const amount=$("crossAmount").value.trim();
-  const destination=$("crossDestination").value.trim();
-  if(!/^\d+$/.test(amount)||BigInt(amount)<=0n)return msg("crossMsg","Enter a positive whole-number amount");
-  if(from==="TMR-CHAIN-1"&&!isTmrDestination(destination))return msg("crossMsg","TMR route requires a valid 0x destination address");
-  if(to==="TMR-CHAIN-1"&&!isValidTmr(destination))return msg("crossMsg","TMR destination requires a valid TMR1 address");
+  const from=$("crossFrom").value,to=$("crossTo").value,amount=$("crossAmount").value.trim(),destination=$("crossDestination").value.trim();
+  if(!/^\d+$/.test(amount)||BigInt(amount)<=0n)return msg("crossMsg","Enter a positive whole TMR amount");
   if(from===to)return msg("crossMsg","Choose two different networks");
-  $("crossQuote").disabled=true;msg("crossMsg","Requesting cross-chain quote…");
+  if(from==="TMR-CHAIN-1"&&!isEvm(destination))return msg("crossMsg","TMR → EVM requires a valid 0x destination");
+  if(to==="TMR-CHAIN-1"&&!isValidTmr(destination))return msg("crossMsg","EVM → TMR requires a valid TMR1 destination");
   try{
-    const body={
-      originChain:from,destinationChain:to,
-      sellToken:from==="TMR-CHAIN-1"?"TMR":"0x0000000000000000000000000000000000000000",
-      buyToken:to==="TMR-CHAIN-1"?"TMR":"0x0000000000000000000000000000000000000000",
-      sellAmount:amount,
-      originAddress:from==="TMR-CHAIN-1"?wallet.address:"0x0000000000000000000000000000000000000000",
-      destinationAddress:destination,
-      estimatedBuyAmount:amount
-    };
+    if(to==="TMR-CHAIN-1" && !evmAccount) await connectEvm();
+    if(to==="TMR-CHAIN-1" && !evmAccount)return;
+    const originAddress=from==="TMR-CHAIN-1"?wallet.address:evmAccount;
+    const body={originChain:from,destinationChain:to,sellToken:from==="TMR-CHAIN-1"?"TMR":(crossConfig?.bridge?.wrappedTmrAddress||"wTMR"),buyToken:to==="TMR-CHAIN-1"?"TMR":(crossConfig?.bridge?.wrappedTmrAddress||"wTMR"),sellAmount:amount,originAddress,destinationAddress:destination};
+    $("crossQuote").disabled=true;msg("crossMsg","Creating real bridge order…");
     const r=await api("/api/crosschain/quote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    const q=r.quote||r;
-    window.lastCrossQuoteId=q.quoteId||q.id||null;
+    lastCrossQuote=r.quote||r; window.lastCrossQuoteId=lastCrossQuote.orderId;
+    $("crossExecute").disabled=false;$("crossExecute").textContent=bridgeActionText(lastCrossQuote);
     $("crossResult").classList.remove("hidden");
-    $("crossResult").innerHTML=`<b>${r.testnet?"TESTNET ROUTE":"0x ROUTE"}</b><br>${crossLabel(from)} → ${crossLabel(to)}<br>Amount: ${q.sellAmount??amount}<br>Status: ${q.status||"quoted"}${q.bridgeProvider?`<br>Provider: ${q.bridgeProvider}`:""}${window.lastCrossQuoteId?`<br>Quote ID: <code>${window.lastCrossQuoteId}</code>`:""}`;
-    msg("crossMsg",r.testnet?"Testnet quote created. No real external funds are moved.":"0x quote received.",true);
-  }catch(e){msg("crossMsg",e.message)}
-  finally{$("crossQuote").disabled=false}
+    $("crossResult").innerHTML=`<b>REAL TESTNET BRIDGE</b><br>${crossLabel(from)} → ${crossLabel(to)}<br>Amount: ${amount} TMR<br>Status: ${lastCrossQuote.status}<br>Order ID: <code>${lastCrossQuote.orderId}</code><br>Provider: TMR Native Lock/Release Bridge`;
+    msg("crossMsg",from==="TMR-CHAIN-1"?"Order created. Execute the signed TMR lock transaction.":"Order created. Execute the wTMR burn transaction.",true);
+  }catch(e){msg("crossMsg",e.message)}finally{$("crossQuote").disabled=false}
 }
-function isValidTmr(x){return /^TMR1[a-z2-7]{32}$/.test(String(x||""))}
-function isTmrDestination(x){return /^0x[a-fA-F0-9]{40}$/.test(String(x||""))}
-async function crosschainStatus(){
-  if(!window.lastCrossQuoteId)return msg("crossMsg","Create a cross-chain quote first");
-  try{
-    const r=await api("/api/crosschain/status?quoteId="+encodeURIComponent(window.lastCrossQuoteId));
-    const s=r.status||{};
-    $("crossResult").classList.remove("hidden");
-    $("crossResult").innerHTML=`<b>Cross-Chain Status</b><br>${s.originChain||""} → ${s.destinationChain||""}<br>Status: ${s.status||"unknown"}<br>Quote ID: <code>${s.quoteId||window.lastCrossQuoteId}</code>`;
-    msg("crossMsg","Status updated.",true);
-  }catch(e){msg("crossMsg",e.message)}
+async function executeTmrLock(){
+  const q=lastCrossQuote;if(!q||q.originChain!=="TMR-CHAIN-1")return;
+  const amount=String(q.sellAmount),a=await api("/api/address/"+encodeURIComponent(wallet.address));
+  const data={type:"bridge_lock",orderId:q.orderId,originAddress:wallet.address,destinationChain:q.destinationChain,destinationAddress:q.destinationAddress,asset:"TMR"};
+  const tx={from:wallet.address,to:crossConfig.bridge.vaultAddress,amount,nonce:Number(a.nextNonce||0),data};
+  const key=await crypto.subtle.importKey("pkcs8",unb64(wallet.privateKey),{name:"Ed25519"},false,["sign"]);
+  const sig=new Uint8Array(await crypto.subtle.sign("Ed25519",key,new TextEncoder().encode(canonical(tx))));
+  const r=await api("/api/transactions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...tx,publicKey:wallet.publicKey,signature:b64(sig)})});
+  msg("crossMsg",`TMR locked on-chain. TX: ${r.transaction.hash}`,true);await pollCrossStatus();await refresh();
 }
-async function initCrosschain(){
-  try{
-    const c=await crosschainConfig();
-    $("crossStatus").textContent=c.zeroXConfigured?"0x + TESTNET":"TESTNET";
-  }catch{}
+async function executeEvmBurn(){
+  if(!window.ethereum)return msg("crossMsg","Connect an EVM wallet first");
+  await ensureEvmNetwork();
+  const q=lastCrossQuote;if(!q||q.destinationChain!=="TMR-CHAIN-1")return;
+  const c=await api("/api/crosschain/evm-burn-calldata",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({orderId:q.orderId,from:evmAccount,amount:q.sellAmount,tmrRecipient:q.destinationAddress})});
+  const txHash=await window.ethereum.request({method:"eth_sendTransaction",params:[{from:evmAccount,to:c.contract,data:c.data,value:"0x0"}]});
+  msg("crossMsg",`wTMR burn submitted. TX: ${txHash}`,true);await pollCrossStatus();
 }
-$("crossQuote").onclick=crosschainQuote;
-$("crossRefresh").onclick=crosschainStatus;
+async function executeCrosschain(){
+  try{if(!lastCrossQuote)return msg("crossMsg","Create a bridge order first");if(lastCrossQuote.originChain==="TMR-CHAIN-1")await executeTmrLock();else await executeEvmBurn();}
+  catch(e){msg("crossMsg",e.message||"Bridge transaction failed")}
+}
+async function pollCrossStatus(){
+  if(!window.lastCrossQuoteId)return;
+  for(let i=0;i<8;i++){
+    const r=await api("/api/crosschain/status?orderId="+encodeURIComponent(window.lastCrossQuoteId));const s=r.status||{};
+    $("crossResult").innerHTML=`<b>REAL BRIDGE STATUS</b><br>${crossLabel(s.originChain)} → ${crossLabel(s.destinationChain)}<br>Status: ${s.status}<br>Order ID: <code>${s.orderId}</code>${s.tmrLockTxHash?`<br>TMR Lock: <code>${s.tmrLockTxHash}</code>`:""}${s.evmTxHash?`<br>EVM Mint/Burn: <code>${s.evmTxHash}</code>`:""}${s.tmrReleaseTxHash?`<br>TMR Release: <code>${s.tmrReleaseTxHash}</code>`:""}`;
+    if(s.status==="COMPLETED")return msg("crossMsg","Cross-chain transfer completed on both testnets.",true);
+    await new Promise(r=>setTimeout(r,5000));
+  }
+}
+async function crosschainStatus(){try{await pollCrossStatus()}catch(e){msg("crossMsg",e.message)}}
+async function initCrosschain(){try{const c=await crosschainConfig();$("crossStatus").textContent=c.bridge.relayerConfigured?"REAL BRIDGE":"CONFIG NEEDED";$("crossExecute").disabled=true;if(c.bridge.evmChainId){$("evmFrom").value=String(c.bridge.evmChainId);$("evmTo").value=String(c.bridge.evmChainId);$("evmFrom").textContent="EVM Bridge Testnet ("+c.bridge.evmChainId+")";$("evmTo").textContent="EVM Bridge Testnet ("+c.bridge.evmChainId+")";}}catch(e){$("crossStatus").textContent="OFFLINE"}}
+$("crossQuote").onclick=crosschainQuote;$("crossExecute").onclick=executeCrosschain;$("crossRefresh").onclick=crosschainStatus;$("connectEvm").onclick=connectEvm;
 
 wallet=load();if(wallet)show();refresh();initCrosschain();
