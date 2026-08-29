@@ -9,6 +9,7 @@ const crypto = require("node:crypto");
 const path = require("path");
 const TMRBlockchain = require("./blockchain");
 const db = require("./database");
+const crosschain = require("./crosschain");
 
 const NETWORK = {
   name: "Thanvi Testnet",
@@ -223,6 +224,11 @@ async function getNetwork() {
   };
 }
 
+
+function crosschainRequestBody(req) {
+  return parseJSONBody(req);
+}
+
 async function handler(req, res) {
   try {
     if (req.method === "OPTIONS") {
@@ -243,6 +249,14 @@ async function handler(req, res) {
     await chain.initialize();
 
     const { pathname, searchParams } = parseURL(req);
+
+    // Cross-chain API. The handler is isolated so the wallet can use
+    // a testnet TMR adapter and optional 0x Cross-Chain API proxy.
+    if (pathname.startsWith("/api/crosschain/")) {
+      req.body = () => parseJSONBody(req);
+      const handled = await crosschain.handle(req, res, pathname, searchParams);
+      if (handled !== false) return handled;
+    }
 
     // ----------------------------------------------------------
     // STATIC WALLET ROUTES
@@ -334,7 +348,10 @@ async function handler(req, res) {
           "POST /api/transactions",
           "/api/transactions/:hash",
           "/api/address/:address",
-          "/api/search"
+          "/api/search",
+          "/api/crosschain/config",
+          "POST /api/crosschain/quote",
+          "GET /api/crosschain/status?quoteId=:id"
         ],
         timestamp: new Date().toISOString()
       });

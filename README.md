@@ -156,3 +156,20 @@ Then open `/` for the Explorer and `/wallet.html` for the wallet.
 ## License
 
 MIT. See `LICENSE`.
+
+
+## Cross-Chain Testnet API
+
+The wallet now includes a **Cross-Chain** panel and these endpoints:
+
+- `GET /api/crosschain/config`
+- `POST /api/crosschain/quote`
+- `GET /api/crosschain/status?quoteId=...`
+
+### 0x integration
+
+Set `ZEROX_API_KEY` in the server environment. The API key stays server-side and is never exposed to the browser.
+
+0x Cross-Chain routes are used only when both origin and destination are 0x-supported chains. `TMR-CHAIN-1` is currently **not** a 0x-supported chain, so TMR ↔ EVM is deliberately a **testnet simulation** until a real TMR bridge/adapter is deployed.
+
+This prevents the wallet from falsely presenting simulated TMR bridge transfers as real external settlement.
