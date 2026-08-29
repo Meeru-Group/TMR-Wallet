@@ -158,18 +158,20 @@ Then open `/` for the Explorer and `/wallet.html` for the wallet.
 MIT. See `LICENSE`.
 
 
-## Cross-Chain Testnet API
+## Real Cross-Chain Testnet
 
-The wallet now includes a **Cross-Chain** panel and these endpoints:
+The wallet now includes a **real TMR ↔ EVM testnet bridge**. TMR is locked in a dedicated bridge vault and an ERC-20-compatible wTMR contract mints the corresponding EVM-side balance. wTMR burns create a real event that the relayer settles by sending TMR from the bridge vault.
+
+Endpoints:
 
 - `GET /api/crosschain/config`
 - `POST /api/crosschain/quote`
-- `GET /api/crosschain/status?quoteId=...`
+- `POST /api/crosschain/evm-burn-calldata`
+- `GET /api/crosschain/status?orderId=...`
+- `GET /api/crosschain/orders`
+
+See [`REAL_BRIDGE_TESTNET.md`](REAL_BRIDGE_TESTNET.md) for deployment and [`BRIDGE_SECURITY.md`](BRIDGE_SECURITY.md) for the trust model.
 
 ### 0x integration
 
-Set `ZEROX_API_KEY` in the server environment. The API key stays server-side and is never exposed to the browser.
-
-0x Cross-Chain routes are used only when both origin and destination are 0x-supported chains. `TMR-CHAIN-1` is currently **not** a 0x-supported chain, so TMR ↔ EVM is deliberately a **testnet simulation** until a real TMR bridge/adapter is deployed.
-
-This prevents the wallet from falsely presenting simulated TMR bridge transfers as real external settlement.
+Set `ZEROX_API_KEY` in the server environment. The API key stays server-side and is never exposed to the browser. 0x Cross-Chain remains available for EVM ↔ EVM routes where both chains are supported. `TMR-CHAIN-1` is not currently a 0x-supported chain, so TMR ↔ EVM uses the native TMR bridge adapter instead of pretending 0x supports TMR.

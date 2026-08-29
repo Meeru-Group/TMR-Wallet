@@ -153,6 +153,25 @@ async function initializeDatabase() {
       last_claim_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS bridge_orders (
+      order_id TEXT PRIMARY KEY,
+      origin_chain TEXT NOT NULL,
+      destination_chain TEXT NOT NULL,
+      sell_token TEXT NOT NULL,
+      buy_token TEXT NOT NULL,
+      sell_amount NUMERIC(78,0) NOT NULL,
+      origin_address TEXT NOT NULL,
+      destination_address TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'CREATED',
+      tmr_lock_tx_hash TEXT,
+      evm_order_hash TEXT UNIQUE,
+      evm_tx_hash TEXT,
+      tmr_release_tx_hash TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS bridge_orders_status_idx ON bridge_orders(status);
+
     CREATE TABLE IF NOT EXISTS reputation_events (
       id BIGSERIAL PRIMARY KEY,
       validator_id TEXT NOT NULL REFERENCES validators(validator_id),
