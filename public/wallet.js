@@ -26,4 +26,57 @@ function renderTx(xs){if(!xs.length){$("activity").textContent="No transactions 
 async function send(){if(!wallet)return;const to=$("recipient").value.trim(),amount=Number($("amount").value);if(!ADDRESS_RE.test(to))return msg("sendMsg","Invalid TMR1 address. Expected TMR1 + 32 lowercase base32 characters.");if(!Number.isSafeInteger(amount)||amount<=0)return msg("sendMsg","Enter a positive whole TMR amount");$("sendButton").disabled=true;msg("sendMsg","Signing locally…");try{const a=await api("/api/address/"+encodeURIComponent(wallet.address));const tx={from:wallet.address,to,amount:String(amount),nonce:Number(a.nextNonce||0),data:null};const key=await crypto.subtle.importKey("pkcs8",unb64(wallet.privateKey),{name:"Ed25519"},false,["sign"]);const sig=new Uint8Array(await crypto.subtle.sign("Ed25519",key,new TextEncoder().encode(canonical(tx))));const r=await api("/api/transactions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...tx,publicKey:wallet.publicKey,signature:b64(sig)})});msg("sendMsg",`Accepted: ${r.transaction?.hash||"pending"}`,true);await refresh()}catch(e){msg("sendMsg","Broadcast failed: "+e.message)}finally{$("sendButton").disabled=false}}
 async function faucet(){if(!wallet)return;$("claimFaucet").disabled=true;msg("faucetMsg","Creating real testnet faucet transaction…");try{const r=await api("/api/faucet",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address:wallet.address})});msg("faucetMsg",`${r.message}. TX: ${r.transaction?.hash||"pending"}`,true);await refresh()}catch(e){msg("faucetMsg",e.message)}finally{$("claimFaucet").disabled=false}}
 $("createWallet").onclick=create;$("restoreWallet").onclick=()=>$("backupFile").click();$("backupFile").onchange=e=>e.target.files[0]&&restore(e.target.files[0]).catch(x=>msg("welcomeMsg",x.message));$("refreshTop").onclick=$("refresh").onclick=refresh;$("sendBtn").onclick=()=>$("sendPanel").classList.remove("hidden");$("receiveBtn").onclick=()=>$("receivePanel").classList.remove("hidden");$("faucetBtn").onclick=()=>$("faucetPanel").classList.remove("hidden");document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>$(b.dataset.close).classList.add("hidden"));$("sendButton").onclick=send;$("claimFaucet").onclick=faucet;$("copyAddress").onclick=$("address").onclick=$("copyReceive").onclick=async()=>{if(wallet){await navigator.clipboard.writeText(wallet.address);alert("TMR address copied")}};$("exportBackup").onclick=()=>encryptBackup().catch(e=>alert(e.message));$("forgetWallet").onclick=()=>{if(confirm("Delete this wallet from this browser? Backup first.")){localStorage.removeItem(STORE);location.reload()}};
-wallet=load();if(wallet)show();refresh();
+
+async function crosschainConfig(){return api("/api/crosschain/config")}
+function crossLabel(id){return id==="TMR-CHAIN-1"?"TMR Testnet":({"1":"Ethereum","8453":"Base","42161":"Arbitrum","137":"Polygon"}[id]||id)}
+async function crosschainQuote(){
+  if(!wallet)return;
+  const from=$("crossFrom").value,to=$("crossTo").value;
+  const amount=$("crossAmount").value.trim();
+  const destination=$("crossDestination").value.trim();
+  if(!/^\d+$/.test(amount)||BigInt(amount)<=0n)return msg("crossMsg","Enter a positive whole-number amount");
+  if(from==="TMR-CHAIN-1"&&!isTmrDestination(destination))return msg("crossMsg","TMR route requires a valid 0x destination address");
+  if(to==="TMR-CHAIN-1"&&!isValidTmr(destination))return msg("crossMsg","TMR destination requires a valid TMR1 address");
+  if(from===to)return msg("crossMsg","Choose two different networks");
+  $("crossQuote").disabled=true;msg("crossMsg","Requesting cross-chain quote…");
+  try{
+    const body={
+      originChain:from,destinationChain:to,
+      sellToken:from==="TMR-CHAIN-1"?"TMR":"0x0000000000000000000000000000000000000000",
+      buyToken:to==="TMR-CHAIN-1"?"TMR":"0x0000000000000000000000000000000000000000",
+      sellAmount:amount,
+      originAddress:from==="TMR-CHAIN-1"?wallet.address:"0x0000000000000000000000000000000000000000",
+      destinationAddress:destination,
+      estimatedBuyAmount:amount
+    };
+    const r=await api("/api/crosschain/quote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const q=r.quote||r;
+    window.lastCrossQuoteId=q.quoteId||q.id||null;
+    $("crossResult").classList.remove("hidden");
+    $("crossResult").innerHTML=`<b>${r.testnet?"TESTNET ROUTE":"0x ROUTE"}</b><br>${crossLabel(from)} → ${crossLabel(to)}<br>Amount: ${q.sellAmount??amount}<br>Status: ${q.status||"quoted"}${q.bridgeProvider?`<br>Provider: ${q.bridgeProvider}`:""}${window.lastCrossQuoteId?`<br>Quote ID: <code>${window.lastCrossQuoteId}</code>`:""}`;
+    msg("crossMsg",r.testnet?"Testnet quote created. No real external funds are moved.":"0x quote received.",true);
+  }catch(e){msg("crossMsg",e.message)}
+  finally{$("crossQuote").disabled=false}
+}
+function isValidTmr(x){return /^TMR1[a-z2-7]{32}$/.test(String(x||""))}
+function isTmrDestination(x){return /^0x[a-fA-F0-9]{40}$/.test(String(x||""))}
+async function crosschainStatus(){
+  if(!window.lastCrossQuoteId)return msg("crossMsg","Create a cross-chain quote first");
+  try{
+    const r=await api("/api/crosschain/status?quoteId="+encodeURIComponent(window.lastCrossQuoteId));
+    const s=r.status||{};
+    $("crossResult").classList.remove("hidden");
+    $("crossResult").innerHTML=`<b>Cross-Chain Status</b><br>${s.originChain||""} → ${s.destinationChain||""}<br>Status: ${s.status||"unknown"}<br>Quote ID: <code>${s.quoteId||window.lastCrossQuoteId}</code>`;
+    msg("crossMsg","Status updated.",true);
+  }catch(e){msg("crossMsg",e.message)}
+}
+async function initCrosschain(){
+  try{
+    const c=await crosschainConfig();
+    $("crossStatus").textContent=c.zeroXConfigured?"0x + TESTNET":"TESTNET";
+  }catch{}
+}
+$("crossQuote").onclick=crosschainQuote;
+$("crossRefresh").onclick=crosschainStatus;
+
+wallet=load();if(wallet)show();refresh();initCrosschain();

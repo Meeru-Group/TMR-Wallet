@@ -40,6 +40,44 @@
   </div>
 
   <section class="card section"><div class="sectionHead"><h2>Activity</h2><button id="refresh" class="mini">Refresh</button></div><div id="activity" class="empty">No transactions yet.</div></section>
+
+  <section class="card section" id="crosschainSection">
+    <div class="sectionHead"><h2>Cross-Chain</h2><span class="live" id="crossStatus">TESTNET</span></div>
+    <p class="crossHint">Move testnet assets between TMR and supported networks. TMR routes use the Thanvi testnet simulator; EVM ↔ EVM quotes can use 0x when configured.</p>
+    <div class="crossGrid">
+      <label>From
+        <select id="crossFrom">
+          <option value="TMR-CHAIN-1">TMR Testnet</option>
+          <option value="8453">Base</option>
+          <option value="1">Ethereum</option>
+          <option value="42161">Arbitrum</option>
+          <option value="137">Polygon</option>
+        </select>
+      </label>
+      <label>To
+        <select id="crossTo">
+          <option value="8453">Base</option>
+          <option value="1">Ethereum</option>
+          <option value="42161">Arbitrum</option>
+          <option value="137">Polygon</option>
+          <option value="TMR-CHAIN-1">TMR Testnet</option>
+        </select>
+      </label>
+    </div>
+    <label class="crossField">Amount
+      <input id="crossAmount" inputmode="numeric" placeholder="100">
+    </label>
+    <label class="crossField">Destination address
+      <input id="crossDestination" placeholder="0x... or TMR1..." autocomplete="off">
+    </label>
+    <div class="two">
+      <button id="crossQuote" class="primary">Get Quote</button>
+      <button id="crossRefresh" class="ghost">Refresh Status</button>
+    </div>
+    <div id="crossMsg" class="msg"></div>
+    <div id="crossResult" class="crossResult hidden"></div>
+  </section>
+
   <section class="card section"><div class="sectionHead"><h2>Network</h2><span class="live">● LIVE</span></div><div class="grid"><div><small>Block height</small><b id="height">—</b></div><div><small>Transactions</small><b id="txCount">—</b></div><div><small>Validators</small><b id="validators">—</b></div><div><small>Consensus</small><b id="consensus">Proof-of-Reputation</b></div></div></section>
   <section class="card section"><div class="sectionHead"><h2>Wallet</h2><button id="copyAddress" class="mini">Copy</button></div><div class="addressBox" id="fullAddress">—</div><div class="keyLabel">Public key</div><div class="addressBox" id="publicKey">—</div><div class="warning">Never share your private key or backup password. This wallet signs transactions locally.</div><div class="two"><button id="exportBackup" class="ghost">Encrypted Backup</button><button id="forgetWallet" class="danger">Delete Wallet</button></div></section>
 </section>
